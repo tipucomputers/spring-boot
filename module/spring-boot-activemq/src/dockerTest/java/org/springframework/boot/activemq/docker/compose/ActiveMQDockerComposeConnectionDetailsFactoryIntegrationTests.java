@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Integration tests for {@link ActiveMQDockerComposeConnectionDetailsFactory}.
  *
- * @author Stephane Nicoll
+ * @author Moritz Halbritter
  */
 class ActiveMQDockerComposeConnectionDetailsFactoryIntegrationTests {
 

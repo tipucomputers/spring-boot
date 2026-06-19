@@ -50,6 +50,7 @@ import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.reactive.result.method.RequestMappingInfoHandlerMapping;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.util.UriComponentsBuilder;
 
 /**
  * A custom {@link RequestMappingInfoHandlerMapping} that makes web endpoints available on
@@ -79,6 +80,12 @@ class CloudFoundryWebFluxEndpointHandlerMapping extends AbstractWebFluxEndpointH
 	}
 
 	@Override
+	protected void initHandlerMethods() {
+		super.initHandlerMethods();
+		registerCatchAllMapping(HttpStatus.FORBIDDEN);
+	}
+
+	@Override
 	protected ReactiveWebOperation wrapReactiveWebOperation(ExposableWebEndpoint endpoint, WebOperation operation,
 			ReactiveWebOperation reactiveWebOperation) {
 		return new SecureReactiveWebOperation(reactiveWebOperation, this.securityInterceptor, endpoint.getEndpointId());
@@ -105,8 +112,9 @@ class CloudFoundryWebFluxEndpointHandlerMapping extends AbstractWebFluxEndpointH
 						return new ResponseEntity<>(securityResponse.getStatus());
 					}
 					AccessLevel accessLevel = exchange.getAttribute(AccessLevel.REQUEST_ATTRIBUTE);
+					String requestUri = UriComponentsBuilder.fromUri(request.getURI()).replaceQuery(null).toUriString();
 					Map<String, Link> links = CloudFoundryWebFluxEndpointHandlerMapping.this.linksResolver
-						.resolveLinks(request.getURI().toString());
+						.resolveLinks(requestUri);
 					return new ResponseEntity<>(
 							Collections.singletonMap("_links", getAccessibleLinks(accessLevel, links)), HttpStatus.OK);
 				});

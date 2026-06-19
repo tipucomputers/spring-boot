@@ -31,6 +31,7 @@ import org.springframework.context.ApplicationContext;
  * {@link Endpoint @Endpoint} to expose HTTP request mappings.
  *
  * @author Andy Wilkinson
+ * @author Lee JiWon
  * @since 2.0.0
  */
 @Endpoint(id = "mappings")
@@ -60,8 +61,8 @@ public class MappingsEndpoint {
 		Map<String, Object> mappings = new HashMap<>();
 		this.descriptionProviders.forEach(
 				(provider) -> mappings.put(provider.getMappingName(), provider.describeMappings(applicationContext)));
-		return new ContextMappingsDescriptor(mappings,
-				(applicationContext.getParent() != null) ? applicationContext.getId() : null);
+		ApplicationContext parent = applicationContext.getParent();
+		return new ContextMappingsDescriptor(mappings, (parent != null) ? parent.getId() : null);
 	}
 
 	/**

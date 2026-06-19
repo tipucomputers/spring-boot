@@ -186,9 +186,18 @@ public final class GraphQlWebMvcAutoConfiguration {
 		@Bean
 		@ConditionalOnMissingBean
 		GraphQlWebSocketHandler graphQlWebSocketHandler(WebGraphQlHandler webGraphQlHandler,
-				GraphQlProperties properties, ObjectProvider<ServerHttpMessageConvertersCustomizer> customizers) {
-			return new GraphQlWebSocketHandler(webGraphQlHandler, getJsonConverter(customizers),
-					properties.getWebsocket().getConnectionInitTimeout(), properties.getWebsocket().getKeepAlive());
+				GraphQlProperties properties, GraphQlCorsProperties corsProperties,
+				ObjectProvider<ServerHttpMessageConvertersCustomizer> customizers) {
+			CorsConfiguration corsConfiguration = corsProperties.toCorsConfiguration();
+			if (corsConfiguration != null) {
+				return new GraphQlWebSocketHandler(webGraphQlHandler, getJsonConverter(customizers),
+						properties.getWebsocket().getConnectionInitTimeout(), properties.getWebsocket().getKeepAlive(),
+						corsConfiguration);
+			}
+			else {
+				return new GraphQlWebSocketHandler(webGraphQlHandler, getJsonConverter(customizers),
+						properties.getWebsocket().getConnectionInitTimeout(), properties.getWebsocket().getKeepAlive());
+			}
 		}
 
 		private HttpMessageConverter<Object> getJsonConverter(

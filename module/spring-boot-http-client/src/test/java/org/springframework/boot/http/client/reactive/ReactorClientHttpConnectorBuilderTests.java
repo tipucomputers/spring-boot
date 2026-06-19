@@ -25,7 +25,11 @@ import java.util.function.UnaryOperator;
 import io.netty.channel.ChannelOption;
 import org.junit.jupiter.api.Test;
 import reactor.netty.http.client.HttpClient;
+import reactor.netty.http.client.HttpClientConfig;
+import reactor.netty.transport.ClientTransport.ResolvedAddressSelector;
 
+import org.springframework.boot.http.client.HttpClientSettings;
+import org.springframework.boot.http.client.InetAddressFilter;
 import org.springframework.boot.http.client.ReactorHttpClientBuilder;
 import org.springframework.http.client.ReactorResourceFactory;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -33,6 +37,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
 /**
@@ -57,6 +62,27 @@ class ReactorClientHttpConnectorBuilderTests
 		};
 		ClientHttpConnectorBuilder.reactor().withHttpClientFactory(httpClientFactory).build();
 		assertThat(called).containsExactly(true);
+	}
+
+	@Test
+	void springHttpClientDefaults() {
+		ReactorClientHttpConnector connector = ClientHttpConnectorBuilder.reactor().build();
+		assertThat(connector).extracting("httpClient.config.acceptGzip").isEqualTo(true);
+	}
+
+	@Test
+	void withoutHttpClientDefaults() {
+		ReactorClientHttpConnector connector = ClientHttpConnectorBuilder.reactor().withoutHttpClientDefaults().build();
+		assertThat(connector).extracting("httpClient.config.acceptGzip").isEqualTo(false);
+	}
+
+	@Test
+	void withHttpClientDefaults() {
+		ReactorClientHttpConnector connector = ClientHttpConnectorBuilder.reactor()
+			.withHttpClientDefaults((httpClient) -> httpClient.baseUrl("test"))
+			.build();
+		assertThat(connector).extracting("httpClient.config.acceptGzip").isEqualTo(false);
+		assertThat(connector).extracting("httpClient.config.baseUrl").isEqualTo("test");
 	}
 
 	@Test
@@ -96,6 +122,28 @@ class ReactorClientHttpConnectorBuilderTests
 			.with((builder) -> builder.withHttpClientFactory(httpClientFactory))
 			.build();
 		assertThat(called).containsExactly(true);
+	}
+
+	@Test
+	void withResolvedAddressSelector() {
+		ResolvedAddressSelector<? super HttpClientConfig> resolvedAddressSelector = mock();
+		ReactorClientHttpConnector connector = ClientHttpConnectorBuilder.reactor()
+			.withResolvedAddressSelector(resolvedAddressSelector)
+			.build();
+		assertThat(connector).extracting("httpClient.config.resolvedAddressesSelector")
+			.isEqualTo(resolvedAddressSelector);
+	}
+
+	@Test
+	void withResolvedAddressSelectorWhenHasInetAddressFilter() {
+		ResolvedAddressSelector<? super HttpClientConfig> resolvedAddressSelector = mock();
+		ReactorClientHttpConnector connector = ClientHttpConnectorBuilder.reactor()
+			.withResolvedAddressSelector(resolvedAddressSelector)
+			.build(HttpClientSettings.defaults().withInetAddressFilter(InetAddressFilter.externalAddresses()));
+		assertThat(connector).extracting("httpClient.config.resolvedAddressesSelector")
+			.matches((selector) -> selector.getClass().getName().contains("ReactorFiltered"));
+		assertThat(connector).extracting("httpClient.config.resolvedAddressesSelector.delegate")
+			.isEqualTo(resolvedAddressSelector);
 	}
 
 	@Override

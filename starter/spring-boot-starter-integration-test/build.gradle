@@ -1,7 +1,7 @@
 /*
  * Copyright 2012-present the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the License);
+ * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -23,4 +23,5 @@ description = "Starter for testing Spring Integration"
 dependencies {
 	api(project(":starter:spring-boot-starter-integration"))
 	api(project(":starter:spring-boot-starter-test"))
+	api("org.springframework.integration:spring-integration-test")
 }

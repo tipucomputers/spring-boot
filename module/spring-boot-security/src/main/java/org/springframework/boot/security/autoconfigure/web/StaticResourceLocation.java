@@ -48,9 +48,10 @@ public enum StaticResourceLocation {
 	WEB_JARS("/webjars/**"),
 
 	/**
-	 * The {@code "favicon.ico"} resource.
+	 * The {@code "favicon.ico"} resource and resources matching
+	 * <code>"/icons/icon-*"</code>.
 	 */
-	FAVICON("/favicon.*", "/*/icon-*"),
+	FAVICON("/favicon.*", "/icons/icon-*"),
 
 	/**
 	 * Resources under {@code "/fonts"}.

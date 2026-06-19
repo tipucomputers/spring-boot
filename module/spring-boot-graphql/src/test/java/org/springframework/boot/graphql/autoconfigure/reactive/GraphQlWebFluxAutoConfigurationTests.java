@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import graphql.schema.idl.TypeRuntimeWiring;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
@@ -263,13 +264,18 @@ class GraphQlWebFluxAutoConfigurationTests {
 	void shouldConfigureWebSocketProperties() {
 		this.contextRunner
 			.withPropertyValues("spring.graphql.websocket.path=/ws",
-					"spring.graphql.websocket.connection-init-timeout=120s", "spring.graphql.websocket.keep-alive=30s")
+					"spring.graphql.websocket.connection-init-timeout=120s", "spring.graphql.websocket.keep-alive=30s",
+					"spring.graphql.cors.allowed-origins=https://example.com")
 			.run((context) -> {
 				assertThat(context).hasSingleBean(GraphQlWebSocketHandler.class);
 				GraphQlWebSocketHandler graphQlWebSocketHandler = context.getBean(GraphQlWebSocketHandler.class);
 				assertThat(graphQlWebSocketHandler).extracting("initTimeoutDuration")
 					.isEqualTo(Duration.ofSeconds(120));
 				assertThat(graphQlWebSocketHandler).extracting("keepAliveDuration").isEqualTo(Duration.ofSeconds(30));
+				assertThat(graphQlWebSocketHandler).extracting("corsConfiguration")
+					.extracting("allowedOrigins")
+					.asInstanceOf(InstanceOfAssertFactories.LIST)
+					.containsExactly("https://example.com");
 			});
 	}
 

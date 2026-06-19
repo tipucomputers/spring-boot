@@ -32,6 +32,7 @@ import io.prometheus.metrics.tracer.common.SpanContext;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.context.properties.source.InvalidConfigurationPropertyValueException;
 import org.springframework.boot.micrometer.metrics.autoconfigure.MetricsAutoConfiguration;
 import org.springframework.boot.micrometer.metrics.autoconfigure.export.prometheus.PrometheusMetricsExportAutoConfiguration;
 import org.springframework.boot.micrometer.observation.autoconfigure.ObservationAutoConfiguration;
@@ -146,6 +147,25 @@ class PrometheusExemplarsAutoConfigurationTests {
 
 			assertThat(bucketTraceInfo).isNotEmpty().contains(counterTraceInfo.orElse(null));
 		});
+	}
+
+	@Test
+	void shouldFailWhenIncludeIsAll() {
+		this.contextRunner.withUserConfiguration(TracingConfiguration.class)
+			.withPropertyValues("management.tracing.exemplars.include=all")
+			.run((context) -> assertThat(context).hasFailed()
+				.getFailure()
+				.rootCause()
+				.isInstanceOf(InvalidConfigurationPropertyValueException.class)
+				.hasMessageContaining(
+						"Property management.tracing.exemplars.include with value 'all' is invalid: Prometheus doesn't support including 'all' traces as exemplars."));
+	}
+
+	@Test
+	void shouldNotSupplySpanContextWhenIncludeIsNone() {
+		this.contextRunner.withUserConfiguration(TracingConfiguration.class)
+			.withPropertyValues("management.tracing.exemplars.include=none")
+			.run((context) -> assertThat(context).doesNotHaveBean(SpanContext.class));
 	}
 
 	@Configuration(proxyBeanMethods = false)

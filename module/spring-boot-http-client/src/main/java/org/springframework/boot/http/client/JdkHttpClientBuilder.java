@@ -16,6 +16,9 @@
 
 package org.springframework.boot.http.client;
 
+import java.net.CookieHandler;
+import java.net.CookieManager;
+import java.net.ProxySelector;
 import java.net.http.HttpClient;
 import java.net.http.HttpClient.Redirect;
 import java.util.concurrent.Executor;
@@ -42,12 +45,15 @@ public final class JdkHttpClientBuilder {
 
 	private final Consumer<HttpClient.Builder> customizer;
 
+	private final ProxySelector proxySelector;
+
 	public JdkHttpClientBuilder() {
-		this(Empty.consumer());
+		this(Empty.consumer(), ProxySelector.getDefault());
 	}
 
-	private JdkHttpClientBuilder(Consumer<HttpClient.Builder> customizer) {
+	private JdkHttpClientBuilder(Consumer<HttpClient.Builder> customizer, ProxySelector proxySelector) {
 		this.customizer = customizer;
+		this.proxySelector = proxySelector;
 	}
 
 	/**
@@ -70,7 +76,18 @@ public final class JdkHttpClientBuilder {
 	 */
 	public JdkHttpClientBuilder withCustomizer(Consumer<HttpClient.Builder> customizer) {
 		Assert.notNull(customizer, "'customizer' must not be null");
-		return new JdkHttpClientBuilder(this.customizer.andThen(customizer));
+		return new JdkHttpClientBuilder(this.customizer.andThen(customizer), this.proxySelector);
+	}
+
+	/**
+	 * Return a new {@link JdkHttpClientBuilder} with a replacement {@link ProxySelector}.
+	 * @param proxySelector the new proxy selector
+	 * @return a new {@link JdkHttpClientBuilder} instance
+	 * @since 4.1.0
+	 */
+	public JdkHttpClientBuilder withProxySelector(ProxySelector proxySelector) {
+		Assert.notNull(proxySelector, "'proxySelector' must not be null");
+		return new JdkHttpClientBuilder(this.customizer, proxySelector);
 	}
 
 	/**
@@ -83,10 +100,12 @@ public final class JdkHttpClientBuilder {
 		Assert.isTrue(settings.readTimeout() == null, "'settings' must not have a 'readTimeout'");
 		HttpClient.Builder builder = HttpClient.newBuilder();
 		PropertyMapper map = PropertyMapper.get();
+		map.from(settings::cookieHandling).as(this::asCookieHandler).to(builder::cookieHandler);
 		map.from(settings::redirects).always().as(this::asHttpClientRedirect).to(builder::followRedirects);
 		map.from(settings::connectTimeout).to(builder::connectTimeout);
 		map.from(settings::sslBundle).as(SslBundle::createSslContext).to(builder::sslContext);
 		map.from(settings::sslBundle).as(this::asSslParameters).to(builder::sslParameters);
+		map.from(proxySelector(settings.inetAddressFilter())).to(builder::proxy);
 		this.customizer.accept(builder);
 		return builder.build();
 	}
@@ -99,6 +118,13 @@ public final class JdkHttpClientBuilder {
 		return parameters;
 	}
 
+	private @Nullable CookieHandler asCookieHandler(HttpCookieHandling cookieHandling) {
+		return switch (cookieHandling) {
+			case ENABLE_WHEN_POSSIBLE, ENABLE -> new CookieManager();
+			case DISABLE -> null;
+		};
+	}
+
 	private Redirect asHttpClientRedirect(@Nullable HttpRedirects redirects) {
 		if (redirects == null) {
 			return Redirect.NORMAL;
@@ -107,6 +133,10 @@ public final class JdkHttpClientBuilder {
 			case FOLLOW_WHEN_POSSIBLE, FOLLOW -> Redirect.NORMAL;
 			case DONT_FOLLOW -> Redirect.NEVER;
 		};
+	}
+
+	private @Nullable ProxySelector proxySelector(@Nullable InetAddressFilter filter) {
+		return (filter != null) ? new JdkFilteredProxySelector(this.proxySelector, filter) : this.proxySelector;
 	}
 
 }

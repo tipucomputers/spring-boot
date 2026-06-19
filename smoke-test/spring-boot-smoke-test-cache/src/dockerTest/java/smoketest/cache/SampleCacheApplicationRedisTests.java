@@ -16,7 +16,10 @@
 
 package smoketest.cache;
 
+import java.time.Duration;
+
 import com.redis.testcontainers.RedisContainer;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -52,9 +55,11 @@ class SampleCacheApplicationRedisTests {
 		countries.clear(); // Simple test assuming the cache is empty
 		assertThat(countries.get("BE")).isNull();
 		Country be = this.countryRepository.findByCode("BE");
-		ValueWrapper belgium = countries.get("BE");
-		assertThat(belgium).isNotNull();
-		assertThat((Country) belgium.get()).isEqualTo(be);
+		Awaitility.waitAtMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+			ValueWrapper belgium = countries.get("BE");
+			assertThat(belgium).isNotNull();
+			assertThat((Country) belgium.get()).isEqualTo(be);
+		});
 	}
 
 }

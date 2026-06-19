@@ -16,7 +16,6 @@
 
 package org.springframework.boot.build.bom.bomr;
 
-import java.io.StringReader;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
@@ -26,7 +25,6 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathFactory;
 
@@ -36,9 +34,9 @@ import org.gradle.api.credentials.Credentials;
 import org.gradle.internal.artifacts.repositories.AuthenticationSupportedInternal;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
 
 import org.springframework.boot.build.bom.bomr.version.DependencyVersion;
+import org.springframework.boot.build.xml.XmlDocument;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -93,9 +91,7 @@ final class MavenMetadataVersionResolver implements VersionResolver {
 			}
 			HttpEntity<Void> request = new HttpEntity<>(headers);
 			String metadata = this.rest.exchange(url, HttpMethod.GET, request, String.class).getBody();
-			Document metadataDocument = DocumentBuilderFactory.newInstance()
-				.newDocumentBuilder()
-				.parse(new InputSource(new StringReader(metadata)));
+			Document metadataDocument = XmlDocument.parseContent(metadata);
 			NodeList versionNodes = (NodeList) XPathFactory.newInstance()
 				.newXPath()
 				.evaluate("/metadata/versioning/versions/version", metadataDocument, XPathConstants.NODESET);

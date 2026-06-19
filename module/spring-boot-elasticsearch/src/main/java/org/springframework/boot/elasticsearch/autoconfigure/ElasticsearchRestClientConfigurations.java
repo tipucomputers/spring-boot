@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.stream.Stream;
 
+import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
 
 import co.elastic.clients.transport.rest5_client.low_level.Rest5Client;
@@ -35,6 +36,7 @@ import org.apache.hc.client5.http.impl.async.HttpAsyncClientBuilder;
 import org.apache.hc.client5.http.impl.auth.BasicCredentialsProvider;
 import org.apache.hc.client5.http.impl.nio.PoolingAsyncClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
+import org.apache.hc.client5.http.ssl.HttpsSupport;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.HttpHost;
@@ -106,10 +108,8 @@ class ElasticsearchRestClientConfigurations {
 				builder.setDefaultHeaders(
 						new Header[] { new BasicHeader("Authorization", "ApiKey " + connectionDetails.getApiKey()) });
 			}
-			builder.setHttpClientConfigCallback((httpClientBuilder) -> {
-				httpClientBuilder.disableContentCompression();
-				builderCustomizers.orderedStream().forEach((customizer) -> customizer.customize(httpClientBuilder));
-			});
+			builder.setHttpClientConfigCallback((httpClientBuilder) -> builderCustomizers.orderedStream()
+				.forEach((customizer) -> customizer.customize(httpClientBuilder)));
 			builder.setConnectionManagerCallback((connectionManagerBuilder) -> builderCustomizers.orderedStream()
 				.forEach((customizer) -> customizer.customize(connectionManagerBuilder)));
 			builder.setConnectionConfigCallback((connectionConfigBuilder) -> builderCustomizers.orderedStream()
@@ -197,9 +197,11 @@ class ElasticsearchRestClientConfigurations {
 			if (sslBundle != null) {
 				SSLContext sslContext = sslBundle.createSslContext();
 				SslOptions sslOptions = sslBundle.getOptions();
+				HostnameVerifier hostnameVerifier = this.properties.getRestclient().getSsl().isVerifyHostname()
+						? HttpsSupport.getDefaultHostnameVerifier() : NoopHostnameVerifier.INSTANCE;
 				DefaultClientTlsStrategy tlsStrategy = new DefaultClientTlsStrategy(sslContext,
 						sslOptions.getEnabledProtocols(), sslOptions.getCiphers(), SSLBufferMode.STATIC,
-						NoopHostnameVerifier.INSTANCE);
+						hostnameVerifier);
 				connectionManagerBuilder.setTlsStrategy(tlsStrategy);
 			}
 		}

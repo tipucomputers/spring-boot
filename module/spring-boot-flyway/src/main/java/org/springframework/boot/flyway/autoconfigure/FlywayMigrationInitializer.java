@@ -67,7 +67,7 @@ public class FlywayMigrationInitializer implements InitializingBean, Ordered {
 				this.flyway.migrate();
 			}
 			catch (NoSuchMethodError ex) {
-				// Flyway < 7.0
+				// Flyway < 10.x/11.x compatibility
 				this.flyway.getClass().getMethod("migrate").invoke(this.flyway);
 			}
 		}

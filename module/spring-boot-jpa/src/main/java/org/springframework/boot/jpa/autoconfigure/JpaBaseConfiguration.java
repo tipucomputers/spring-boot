@@ -37,14 +37,17 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingFilterBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type;
+import org.springframework.boot.autoconfigure.task.TaskExecutionAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.jpa.EntityManagerFactoryBuilder;
+import org.springframework.boot.jpa.autoconfigure.JpaProperties.Bootstrap;
 import org.springframework.boot.persistence.autoconfigure.EntityScanPackages;
 import org.springframework.boot.transaction.autoconfigure.TransactionManagerCustomizers;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.JpaVendorAdapter;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
@@ -120,11 +123,22 @@ public abstract class JpaBaseConfiguration {
 	@ConditionalOnMissingBean
 	public EntityManagerFactoryBuilder entityManagerFactoryBuilder(JpaVendorAdapter jpaVendorAdapter,
 			ObjectProvider<PersistenceUnitManager> persistenceUnitManager,
-			ObjectProvider<EntityManagerFactoryBuilderCustomizer> customizers) {
+			ObjectProvider<EntityManagerFactoryBuilderCustomizer> customizers,
+			Map<String, AsyncTaskExecutor> taskExecutors) {
+		@Nullable AsyncTaskExecutor bootstrapExecutor = determineBootstrapExecutor(taskExecutors);
 		EntityManagerFactoryBuilder builder = new EntityManagerFactoryBuilder(jpaVendorAdapter,
-				this::buildJpaProperties, persistenceUnitManager.getIfAvailable());
+				this::buildJpaProperties, persistenceUnitManager.getIfAvailable(), null, bootstrapExecutor);
+		if (this.properties.getBootstrap() == Bootstrap.ASYNC) {
+			builder.requireBootstrapExecutor(
+					() -> BootstrapExecutorRequiredException.ofProperty("spring.jpa.bootstrap", "async"));
+		}
 		customizers.orderedStream().forEach((customizer) -> customizer.customize(builder));
 		return builder;
+	}
+
+	private @Nullable AsyncTaskExecutor determineBootstrapExecutor(Map<String, AsyncTaskExecutor> taskExecutors) {
+		return (taskExecutors.size() == 1) ? taskExecutors.values().iterator().next()
+				: taskExecutors.get(TaskExecutionAutoConfiguration.APPLICATION_TASK_EXECUTOR_BEAN_NAME);
 	}
 
 	private Map<String, ?> buildJpaProperties(DataSource dataSource) {

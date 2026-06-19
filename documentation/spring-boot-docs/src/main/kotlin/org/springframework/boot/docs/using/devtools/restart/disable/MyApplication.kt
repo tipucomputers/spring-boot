@@ -16,17 +16,13 @@
 
 package org.springframework.boot.docs.using.devtools.restart.disable
 
-import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.SpringBootApplication
+import org.springframework.boot.runApplication
 
 @SpringBootApplication
-object MyApplication {
+class MyApplication
 
-	@JvmStatic
-	fun main(args: Array<String>) {
-		System.setProperty("spring.devtools.restart.enabled", "false")
-		SpringApplication.run(MyApplication::class.java, *args)
-	}
-
+fun main(args: Array<String>) {
+	System.setProperty("spring.devtools.restart.enabled", "false")
+	runApplication<MyApplication>(*args)
 }
-

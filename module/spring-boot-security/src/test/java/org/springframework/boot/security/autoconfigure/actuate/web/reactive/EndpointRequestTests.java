@@ -33,6 +33,7 @@ import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.actuate.endpoint.web.PathMappedEndpoint;
 import org.springframework.boot.actuate.endpoint.web.PathMappedEndpoints;
 import org.springframework.boot.actuate.endpoint.web.WebServerNamespace;
+import org.springframework.boot.test.util.TestPropertyValues;
 import org.springframework.boot.web.server.WebServer;
 import org.springframework.boot.web.server.context.WebServerApplicationContext;
 import org.springframework.context.support.StaticApplicationContext;
@@ -77,6 +78,15 @@ class EndpointRequestTests {
 	}
 
 	@Test
+	void toAnyEndpointWithHttpMethodShouldUseGetForLinks() {
+		ServerWebExchangeMatcher matcher = EndpointRequest.toAnyEndpoint().withHttpMethod(HttpMethod.POST);
+		assertMatcher(matcher, "/actuator").matches(HttpMethod.GET, "/actuator");
+		assertMatcher(matcher, "/actuator").doesNotMatch(HttpMethod.POST, "/actuator");
+		assertMatcher(matcher, "/actuator").matches(HttpMethod.GET, "/actuator/");
+		assertMatcher(matcher, "/actuator").doesNotMatch(HttpMethod.POST, "/actuator/");
+	}
+
+	@Test
 	void toAnyEndpointShouldMatchEndpointPathWithTrailingSlash() {
 		ServerWebExchangeMatcher matcher = EndpointRequest.toAnyEndpoint();
 		assertMatcher(matcher).matches("/actuator/foo/");
@@ -91,6 +101,15 @@ class EndpointRequestTests {
 		assertMatcher.doesNotMatch("/");
 		assertMatcher.matches("/foo");
 		assertMatcher.matches("/bar");
+	}
+
+	@Test
+	void toAnyEndpointWhenBasePathIsEmptyAndManagementPortDifferentShouldMatchLinks() {
+		ServerWebExchangeMatcher matcher = EndpointRequest.toAnyEndpoint();
+		RequestMatcherAssert assertMatcher = assertMatcher(matcher, mockPathMappedEndpoints(""),
+				WebServerNamespace.MANAGEMENT);
+		assertMatcher.matches("/");
+		assertMatcher.matches("/foo");
 	}
 
 	@Test
@@ -132,8 +151,10 @@ class EndpointRequestTests {
 		ServerWebExchangeMatcher matcher = EndpointRequest.toLinks();
 		assertMatcher(matcher).doesNotMatch("/actuator/foo");
 		assertMatcher(matcher).doesNotMatch("/actuator/bar");
-		assertMatcher(matcher).matches("/actuator");
-		assertMatcher(matcher).matches("/actuator/");
+		assertMatcher(matcher).matches(HttpMethod.GET, "/actuator");
+		assertMatcher(matcher).doesNotMatch(HttpMethod.POST, "/actuator");
+		assertMatcher(matcher).matches(HttpMethod.GET, "/actuator/");
+		assertMatcher(matcher).doesNotMatch(HttpMethod.POST, "/actuator/");
 	}
 
 	@Test
@@ -143,6 +164,15 @@ class EndpointRequestTests {
 		assertMatcher.doesNotMatch("/actuator/foo");
 		assertMatcher.doesNotMatch("/actuator/bar");
 		assertMatcher.doesNotMatch("/");
+	}
+
+	@Test
+	void toLinksWhenBasePathEmptyAndManagementPortDifferentShouldMatchRoot() {
+		ServerWebExchangeMatcher matcher = EndpointRequest.toLinks();
+		RequestMatcherAssert assertMatcher = assertMatcher(matcher, mockPathMappedEndpoints(""),
+				WebServerNamespace.MANAGEMENT);
+		assertMatcher.matches("/");
+		assertMatcher.doesNotMatch("/foo");
 	}
 
 	@Test
@@ -215,6 +245,33 @@ class EndpointRequestTests {
 		assertMatcher.matches("/foo/");
 		assertMatcher.matches("/bar");
 		assertMatcher.matches("/bar/");
+	}
+
+	@Test
+	void toAnyEndpointWithHttpMethodExcludingShouldPreserveHttpMethod() {
+		ServerWebExchangeMatcher matcher = EndpointRequest.toAnyEndpoint()
+			.withHttpMethod(HttpMethod.POST)
+			.excluding(FooEndpoint.class)
+			.excluding("baz");
+		List<ExposableEndpoint<?>> endpoints = new ArrayList<>();
+		endpoints.add(mockEndpoint(EndpointId.of("foo"), "foo"));
+		endpoints.add(mockEndpoint(EndpointId.of("bar"), "bar"));
+		endpoints.add(mockEndpoint(EndpointId.of("baz"), "baz"));
+		PathMappedEndpoints pathMappedEndpoints = new PathMappedEndpoints("/actuator", () -> endpoints);
+		assertMatcher(matcher, pathMappedEndpoints).matches(HttpMethod.POST, "/actuator/bar");
+		assertMatcher(matcher, pathMappedEndpoints).doesNotMatch(HttpMethod.GET, "/actuator/bar");
+		assertMatcher(matcher, pathMappedEndpoints).doesNotMatch("/actuator/foo");
+		assertMatcher(matcher, pathMappedEndpoints).doesNotMatch("/actuator/baz");
+	}
+
+	@Test
+	void toAnyEndpointWithHttpMethodExcludingLinksShouldPreserveHttpMethod() {
+		ServerWebExchangeMatcher matcher = EndpointRequest.toAnyEndpoint()
+			.withHttpMethod(HttpMethod.POST)
+			.excludingLinks();
+		assertMatcher(matcher).matches(HttpMethod.POST, "/actuator/foo");
+		assertMatcher(matcher).doesNotMatch(HttpMethod.GET, "/actuator/foo");
+		assertMatcher(matcher).doesNotMatch("/actuator");
 	}
 
 	@Test
@@ -293,11 +350,23 @@ class EndpointRequestTests {
 	}
 
 	@Test
+	void toAdditionalPathsWithHttpMethodShouldRespectRequestMethod() {
+		ServerWebExchangeMatcher matcher = EndpointRequest
+			.toAdditionalPaths(WebServerNamespace.SERVER, FooEndpoint.class)
+			.withHttpMethod(HttpMethod.POST);
+		RequestMatcherAssert assertMatcher = assertMatcher(matcher, new PathMappedEndpoints("",
+				() -> List.of(mockEndpoint(EndpointId.of("foo"), "test", WebServerNamespace.SERVER, "/additional"))));
+		assertMatcher.matches(HttpMethod.POST, "/additional");
+		assertMatcher.doesNotMatch(HttpMethod.GET, "/additional");
+	}
+
+	@Test
 	void toAdditionalPathsWithEndpointClassShouldNotMatchOtherPaths() {
 		ServerWebExchangeMatcher matcher = EndpointRequest.toAdditionalPaths(WebServerNamespace.SERVER,
 				FooEndpoint.class);
 		RequestMatcherAssert assertMatcher = assertMatcher(matcher, new PathMappedEndpoints("",
 				() -> List.of(mockEndpoint(EndpointId.of("foo"), "test", WebServerNamespace.SERVER, "/additional"))));
+		assertMatcher.doesNotMatch("/additional/foo");
 		assertMatcher.doesNotMatch("/foo");
 		assertMatcher.doesNotMatch("/bar");
 	}
@@ -327,10 +396,14 @@ class EndpointRequestTests {
 
 	private RequestMatcherAssert assertMatcher(ServerWebExchangeMatcher matcher,
 			@Nullable PathMappedEndpoints pathMappedEndpoints, @Nullable WebServerNamespace namespace) {
-		StaticApplicationContext context = new StaticApplicationContext();
+		StaticWebApplicationContext context;
 		if (namespace != null && !WebServerNamespace.SERVER.equals(namespace)) {
-			NamedStaticWebApplicationContext parentContext = new NamedStaticWebApplicationContext(namespace);
-			context.setParent(parentContext);
+			context = new NamedStaticWebApplicationContext(namespace);
+			context.setParent(new StaticWebApplicationContext());
+			TestPropertyValues.of("management.server.port=0").applyTo(context);
+		}
+		else {
+			context = new StaticWebApplicationContext();
 		}
 		context.registerBean(WebEndpointProperties.class);
 		if (pathMappedEndpoints != null) {

@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import com.google.protobuf.gradle.ProtobufPlugin;
 import com.sun.jna.Platform;
 import io.spring.gradle.dependencymanagement.DependencyManagementPlugin;
 import org.antlr.v4.runtime.Lexer;
@@ -86,10 +87,9 @@ public class PluginClasspathGradleBuild extends GradleBuild {
 		if (this.kotlin) {
 			classpath.add(new File(pathOfJarContaining("org.jetbrains.kotlin.cli.common.PropertiesKt")));
 			classpath.add(new File(pathOfJarContaining(KotlinToolingVersion.class)));
-			classpath.add(new File(pathOfJarContaining("org.jetbrains.kotlin.build.report.metrics.BuildTime")));
+			classpath.add(new File(pathOfJarContaining("org.jetbrains.kotlin.build.report.metrics.BuildTimes")));
 			classpath.add(new File(pathOfJarContaining("org.jetbrains.kotlin.buildtools.api.CompilationService")));
 			classpath.add(new File(pathOfJarContaining("org.jetbrains.kotlin.daemon.client.KotlinCompilerClient")));
-			classpath.add(new File(pathOfJarContaining("org.jetbrains.kotlin.konan.library.KonanLibrary")));
 			classpath.add(new File(pathOfJarContaining(KotlinCompilerPluginSupportPlugin.class)));
 			classpath.add(new File(pathOfJarContaining(LanguageSettings.class)));
 			classpath.add(new File(pathOfJarContaining(BuildUidService.class)));
@@ -125,6 +125,10 @@ public class PluginClasspathGradleBuild extends GradleBuild {
 		classpath.add(new File(pathOfJarContaining("org.codehaus.plexus.util.xml.pull.XmlPullParserException")));
 		classpath.add(new File(pathOfJarContaining("org.codehaus.stax2.ri.Stax2WriterAdapter")));
 		classpath.add(new File(pathOfJarContaining("org.cyclonedx.model.ExternalReference")));
+		// Protobuf dependencies
+		classpath.add(new File(pathOfJarContaining(ProtobufPlugin.class)));
+		classpath.add(new File(pathOfJarContaining("com.google.gradle.osdetector.OsDetectorPlugin")));
+		classpath.add(new File(pathOfJarContaining("kr.motd.maven.os.FileOperationProvider")));
 		return classpath;
 	}
 

@@ -16,6 +16,7 @@
 
 package org.springframework.boot.configurationprocessor;
 
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
@@ -43,13 +44,19 @@ class ConstructorParameterPropertyDescriptor extends ParameterPropertyDescriptor
 	}
 
 	@Override
+	protected Element getSourceElement() {
+		return this.field;
+	}
+
+	@Override
 	protected ItemDeprecation resolveItemDeprecation(MetadataGenerationEnvironment environment) {
 		return resolveItemDeprecation(environment, getGetter(), this.setter, this.field);
 	}
 
 	@Override
 	protected boolean isMarkedAsNested(MetadataGenerationEnvironment environment) {
-		return environment.getNestedConfigurationPropertyAnnotation(this.field) != null;
+		return environment.getNestedConfigurationPropertyAnnotation(this.field) != null
+				|| environment.getNestedConfigurationPropertyAnnotation(getGetter()) != null;
 	}
 
 	@Override

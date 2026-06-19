@@ -34,9 +34,11 @@ import com.microsoft.sqlserver.jdbc.SQLServerDataSource;
 import com.zaxxer.hikari.HikariDataSource;
 import oracle.jdbc.internal.OpaqueString;
 import oracle.jdbc.pool.OracleDataSource;
+import oracle.ucp.config.PoolPropertiesException;
 import oracle.ucp.jdbc.PoolDataSource;
 import oracle.ucp.jdbc.PoolDataSourceImpl;
 import org.apache.commons.dbcp2.BasicDataSource;
+import org.assertj.core.util.introspection.FieldSupport;
 import org.h2.Driver;
 import org.h2.jdbcx.JdbcDataSource;
 import org.jspecify.annotations.Nullable;
@@ -46,6 +48,7 @@ import org.postgresql.ds.PGSimpleDataSource;
 import org.vibur.dbcp.ViburDBCPDataSource;
 
 import org.springframework.jdbc.datasource.AbstractDataSource;
+import org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy;
 import org.springframework.jdbc.datasource.SimpleDriverDataSource;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabase;
 import org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseBuilder;
@@ -61,6 +64,7 @@ import static org.assertj.core.api.Assertions.assertThatNoException;
  * @author Stephane Nicoll
  * @author Fabio Grassi
  * @author Phillip Webb
+ * @author Vedran Pavic
  */
 class DataSourceBuilderTests {
 
@@ -381,8 +385,9 @@ class DataSourceBuilderTests {
 			.password("secret2")
 			.build();
 		assertThat(built.getUser()).isEqualTo("test2");
-		assertThat(built).extracting("password")
-			.extracting((opaque) -> ((OpaqueString) opaque).get())
+		assertThat(built)
+			.extracting((target) -> FieldSupport.extraction().fieldValue("password", OpaqueString.class, target))
+			.extracting(OpaqueString::get)
 			.isEqualTo("secret2");
 		assertThat(built.getURL()).isEqualTo("example.com");
 	}
@@ -396,10 +401,17 @@ class DataSourceBuilderTests {
 		DataSourceBuilder<?> builder = DataSourceBuilder.derivedFrom(dataSource);
 		PoolDataSource built = (PoolDataSource) builder.username("test2").password("secret2").build();
 		assertThat(built.getUser()).isEqualTo("test2");
-		assertThat(built).extracting("password")
-			.extracting((opaque) -> ((oracle.ucp.util.OpaqueString) opaque).get())
-			.isEqualTo("secret2");
+		assertThat(built).extracting(this::getPassword).isEqualTo("secret2");
 		assertThat(built.getURL()).isEqualTo("example.com");
+	}
+
+	private String getPassword(PoolDataSource target) {
+		try {
+			return ((oracle.ucp.util.OpaqueString) target.getPoolProperties().getPoolProperty("password")).get();
+		}
+		catch (PoolPropertiesException ex) {
+			throw new IllegalStateException(ex);
+		}
 	}
 
 	@Test
@@ -421,6 +433,19 @@ class DataSourceBuilderTests {
 		dataSource.setPassword("secret");
 		dataSource.setJdbcUrl("jdbc:h2:test");
 		DataSourceBuilder<?> builder = DataSourceBuilder.derivedFrom(wrap(wrap(dataSource)));
+		HikariDataSource built = (HikariDataSource) builder.username("test2").password("secret2").build();
+		assertThat(built.getUsername()).isEqualTo("test2");
+		assertThat(built.getPassword()).isEqualTo("secret2");
+		assertThat(built.getJdbcUrl()).isEqualTo("jdbc:h2:test");
+	}
+
+	@Test
+	void buildWhenDerivedFromLazyConnectionDataSourceProxy() {
+		HikariDataSource dataSource = new HikariDataSource();
+		dataSource.setUsername("test");
+		dataSource.setPassword("secret");
+		dataSource.setJdbcUrl("jdbc:h2:test");
+		DataSourceBuilder<?> builder = DataSourceBuilder.derivedFrom(new LazyConnectionDataSourceProxy(dataSource));
 		HikariDataSource built = (HikariDataSource) builder.username("test2").password("secret2").build();
 		assertThat(built.getUsername()).isEqualTo("test2");
 		assertThat(built.getPassword()).isEqualTo("secret2");

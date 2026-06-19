@@ -16,6 +16,7 @@
 
 package org.springframework.boot.http.client;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -79,6 +80,21 @@ class SimpleClientHttpRequestFactoryBuilderTests
 	@Override
 	void redirectDontFollow(String httpMethod) throws Exception {
 		super.redirectDontFollow(httpMethod);
+	}
+
+	@Test
+	@Override
+	void filteredInetAddress() throws Exception {
+		assertThatIllegalStateException()
+			.isThrownBy(() -> getBuilder()
+				.build(HttpClientSettings.defaults().withInetAddressFilter(InetAddressFilter.externalAddresses())))
+			.withMessage("Simple HTTP request factory does not support InetAddress filtering");
+	}
+
+	@Test
+	void throwsWhenCookieHandlingEnabled() {
+		assertThatIllegalStateException().isThrownBy(() -> ClientHttpRequestFactoryBuilder.simple()
+			.build(HttpClientSettings.defaults().withCookieHandling(HttpCookieHandling.ENABLE)));
 	}
 
 	@Override

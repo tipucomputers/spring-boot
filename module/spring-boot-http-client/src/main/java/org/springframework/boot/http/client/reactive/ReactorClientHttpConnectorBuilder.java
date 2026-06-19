@@ -24,6 +24,8 @@ import java.util.function.UnaryOperator;
 
 import org.jspecify.annotations.Nullable;
 import reactor.netty.http.client.HttpClient;
+import reactor.netty.http.client.HttpClientConfig;
+import reactor.netty.transport.ClientTransport.ResolvedAddressSelector;
 
 import org.springframework.boot.http.client.HttpClientSettings;
 import org.springframework.boot.http.client.ReactorHttpClientBuilder;
@@ -89,6 +91,29 @@ public final class ReactorClientHttpConnectorBuilder
 	}
 
 	/**
+	 * Return a new {@link ReactorClientHttpConnectorBuilder} that does not apply any
+	 * defaults when first creating the {@link HttpClient}.
+	 * @return a new {@link ReactorClientHttpConnectorBuilder} instance
+	 * @since 4.1.0
+	 */
+	public ReactorClientHttpConnectorBuilder withoutHttpClientDefaults() {
+		return withHttpClientDefaults(null);
+	}
+
+	/**
+	 * Return a new {@link ReactorClientHttpConnectorBuilder} that applies the given
+	 * factory defaults when first creating the {@link HttpClient}.
+	 * @param factoryDefaults the factory to use
+	 * @return a new {@link ReactorClientHttpConnectorBuilder} instance
+	 * @since 4.1.0
+	 */
+	public ReactorClientHttpConnectorBuilder withHttpClientDefaults(
+			@Nullable UnaryOperator<HttpClient> factoryDefaults) {
+		return new ReactorClientHttpConnectorBuilder(getCustomizers(),
+				this.httpClientBuilder.withHttpClientDefaults(factoryDefaults));
+	}
+
+	/**
 	 * Return a new {@link ReactorClientHttpConnectorBuilder} that applies additional
 	 * customization to the underlying {@link HttpClient}.
 	 * @param httpClientCustomizer the customizer to apply
@@ -98,6 +123,21 @@ public final class ReactorClientHttpConnectorBuilder
 		Assert.notNull(httpClientCustomizer, "'httpClientCustomizer' must not be null");
 		return new ReactorClientHttpConnectorBuilder(getCustomizers(),
 				this.httpClientBuilder.withHttpClientCustomizer(httpClientCustomizer));
+	}
+
+	/**
+	 * Return a new {@link ReactorHttpClientBuilder} that uses the
+	 * {@link ResolvedAddressSelector}. This method should be used in favor of a
+	 * customizer so that {@link HttpClientSettings#inetAddressFilter()} can be applied.
+	 * @param resolvedAddressSelector the resolved address selector to use
+	 * @return a new {@link ReactorHttpClientBuilder} instance
+	 * @since 4.1.0
+	 */
+	public ReactorClientHttpConnectorBuilder withResolvedAddressSelector(
+			ResolvedAddressSelector<? super HttpClientConfig> resolvedAddressSelector) {
+		Assert.notNull(resolvedAddressSelector, "'resolvedAddressSelector' must not be null");
+		return new ReactorClientHttpConnectorBuilder(getCustomizers(),
+				this.httpClientBuilder.withResolvedAddressSelector(resolvedAddressSelector));
 	}
 
 	/**

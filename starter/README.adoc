@@ -59,6 +59,9 @@ do as they were designed before this was clarified.
 | https://camunda.org/[Camunda BPM]
 | https://github.com/camunda/camunda-bpm-spring-boot-starter
 
+| https://apereo.github.io/cas/[CAS Client]
+| https://github.com/apereo/java-cas-client/tree/master/cas-client-support-springboot
+
 | https://casdoor.org/[Casdoor]
 | https://github.com/casdoor/casdoor-spring-boot-starter
 
@@ -115,9 +118,6 @@ do as they were designed before this was clarified.
 
 | https://javaee.github.io/grizzly/[Grizzly]
 | https://github.com/dabla/grizzly-spring-boot-starter
-
-| https://www.grpc.io/[gRPC]
-| https://github.com/LogNet/grpc-spring-boot-starter & https://github.com/yidongnan/grpc-spring-boot-starter & https://github.com/DanielLiu1123/grpc-starter
 
 | https://ha-jdbc.github.io/[HA JDBC]
 | https://github.com/lievendoclo/hajdbc-spring-boot

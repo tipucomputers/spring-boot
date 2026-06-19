@@ -180,9 +180,17 @@ public final class GraphQlWebFluxAutoConfiguration {
 		@Bean
 		@ConditionalOnMissingBean
 		GraphQlWebSocketHandler graphQlWebSocketHandler(WebGraphQlHandler webGraphQlHandler,
-				GraphQlProperties properties, ServerCodecConfigurer configurer) {
-			return new GraphQlWebSocketHandler(webGraphQlHandler, configurer,
-					properties.getWebsocket().getConnectionInitTimeout(), properties.getWebsocket().getKeepAlive());
+				GraphQlProperties properties, GraphQlCorsProperties corsProperties, ServerCodecConfigurer configurer) {
+			CorsConfiguration corsConfiguration = corsProperties.toCorsConfiguration();
+			if (corsConfiguration != null) {
+				return new GraphQlWebSocketHandler(webGraphQlHandler, configurer,
+						properties.getWebsocket().getConnectionInitTimeout(), properties.getWebsocket().getKeepAlive(),
+						corsConfiguration);
+			}
+			else {
+				return new GraphQlWebSocketHandler(webGraphQlHandler, configurer,
+						properties.getWebsocket().getConnectionInitTimeout(), properties.getWebsocket().getKeepAlive());
+			}
 		}
 
 		@Bean

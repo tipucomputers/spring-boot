@@ -16,17 +16,21 @@
 
 package org.springframework.boot.http.client;
 
+import java.net.ProxySelector;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.concurrent.Executor;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for {@link JdkClientHttpRequestFactoryBuilder} and {@link JdkHttpClientBuilder}.
@@ -66,6 +70,58 @@ class JdkClientHttpRequestFactoryBuilderTests
 		TestCustomizer<HttpClient.Builder> customizer = new TestCustomizer<>();
 		ClientHttpRequestFactoryBuilder.jdk().with((builder) -> builder.withHttpClientCustomizer(customizer)).build();
 		customizer.assertCalled();
+	}
+
+	@Test
+	void withProxySelector() {
+		ProxySelector proxySelector = mock();
+		JdkClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.jdk()
+			.withProxySelector(proxySelector)
+			.build();
+		HttpClient httpClient = (HttpClient) ReflectionTestUtils.getField(factory, "httpClient");
+		assertThat(httpClient).isNotNull();
+		assertThat(httpClient.proxy()).contains(proxySelector);
+	}
+
+	@Test
+	void withProxySelectorWhenHasInetAddressMatcher() {
+		ProxySelector proxySelector = mock();
+		JdkClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.jdk()
+			.withProxySelector(proxySelector)
+			.build(HttpClientSettings.defaults().withInetAddressFilter(InetAddressFilter.externalAddresses()));
+		HttpClient httpClient = (HttpClient) ReflectionTestUtils.getField(factory, "httpClient");
+		assertThat(httpClient).isNotNull();
+		ProxySelector actual = httpClient.proxy().get();
+		assertThat(actual).matches((proxy) -> proxy.getClass().getName().contains("JdkFiltered"));
+		assertThat(actual).extracting("delegate").isEqualTo(proxySelector);
+	}
+
+	@Test
+	void defaultCookieHandling() {
+		JdkClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.jdk()
+			.build(HttpClientSettings.defaults());
+		HttpClient httpClient = (HttpClient) ReflectionTestUtils.getField(factory, "httpClient");
+		assertThat(httpClient).isNotNull();
+		assertThat(httpClient.cookieHandler()).isEmpty();
+	}
+
+	@Test
+	void cookieHandlingDisabled() {
+		JdkClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.jdk()
+			.build(HttpClientSettings.defaults().withCookieHandling(HttpCookieHandling.DISABLE));
+		HttpClient httpClient = (HttpClient) ReflectionTestUtils.getField(factory, "httpClient");
+		assertThat(httpClient).isNotNull();
+		assertThat(httpClient.cookieHandler()).isEmpty();
+	}
+
+	@ParameterizedTest
+	@EnumSource(names = { "ENABLE", "ENABLE_WHEN_POSSIBLE" })
+	void cookieHandlingEnabled(HttpCookieHandling cookieHandling) {
+		JdkClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.jdk()
+			.build(HttpClientSettings.defaults().withCookieHandling(cookieHandling));
+		HttpClient httpClient = (HttpClient) ReflectionTestUtils.getField(factory, "httpClient");
+		assertThat(httpClient).isNotNull();
+		assertThat(httpClient.cookieHandler()).isNotEmpty();
 	}
 
 	@Override

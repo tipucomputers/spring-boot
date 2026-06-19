@@ -54,6 +54,8 @@ class SecurityService {
 
 	private final String cloudControllerUrl;
 
+	private final Mono<String> uaaUrl;
+
 	SecurityService(WebClient.Builder webClientBuilder, String cloudControllerUrl, boolean skipSslValidation) {
 		Assert.notNull(webClientBuilder, "'webClientBuilder' must not be null");
 		Assert.notNull(cloudControllerUrl, "'cloudControllerUrl' must not be null");
@@ -62,6 +64,18 @@ class SecurityService {
 		}
 		this.webClient = webClientBuilder.build();
 		this.cloudControllerUrl = cloudControllerUrl;
+		this.uaaUrl = this.webClient.get()
+			.uri(this.cloudControllerUrl + "/info")
+			.retrieve()
+			.bodyToMono(Map.class)
+			.map((response) -> {
+				String tokenEndpoint = (String) response.get("token_endpoint");
+				Assert.state(tokenEndpoint != null, "No 'token_endpoint' found in response");
+				return tokenEndpoint;
+			})
+			.cacheInvalidateIf((token) -> false)
+			.onErrorMap((ex) -> new CloudFoundryAuthorizationException(Reason.SERVICE_UNAVAILABLE,
+					"Unable to fetch token keys from UAA."));
 	}
 
 	protected ReactorClientHttpConnector buildTrustAllSslConnector() {
@@ -149,18 +163,7 @@ class SecurityService {
 	 * @return the UAA url Mono
 	 */
 	Mono<String> getUaaUrl() {
-		return this.webClient.get()
-			.uri(this.cloudControllerUrl + "/info")
-			.retrieve()
-			.bodyToMono(Map.class)
-			.map((response) -> {
-				String tokenEndpoint = (String) response.get("token_endpoint");
-				Assert.state(tokenEndpoint != null, "No 'token_endpoint' found in response");
-				return tokenEndpoint;
-			})
-			.cache()
-			.onErrorMap((ex) -> new CloudFoundryAuthorizationException(Reason.SERVICE_UNAVAILABLE,
-					"Unable to fetch token keys from UAA."));
+		return this.uaaUrl;
 	}
 
 }

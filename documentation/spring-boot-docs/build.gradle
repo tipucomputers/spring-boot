@@ -1,7 +1,7 @@
 /*
  * Copyright 2012-present the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the License);
+ * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -110,6 +110,9 @@ dependencies {
 	implementation(project(path: ":module:spring-boot-data-redis-test"))
 	implementation(project(path: ":module:spring-boot-devtools"))
 	implementation(project(path: ":module:spring-boot-graphql-test"))
+	implementation(project(path: ":module:spring-boot-grpc-client"))
+	implementation(project(path: ":module:spring-boot-grpc-server"))
+	implementation(project(path: ":module:spring-boot-grpc-test"))
 	implementation(project(path: ":module:spring-boot-health"))
 	implementation(project(path: ":module:spring-boot-hibernate"))
 	implementation(project(path: ":module:spring-boot-http-converter"))
@@ -118,6 +121,7 @@ dependencies {
 	implementation(project(path: ":module:spring-boot-jackson"))
 	implementation(project(path: ":module:spring-boot-jdbc"))
 	implementation(project(path: ":module:spring-boot-jdbc-test"))
+	implementation(project(path: ":module:spring-boot-jetty"))
 	implementation(project(path: ":module:spring-boot-jooq-test"))
 	implementation(project(path: ":module:spring-boot-jpa"))
 	implementation(project(path: ":module:spring-boot-jms"))
@@ -146,6 +150,8 @@ dependencies {
 	implementation("ch.qos.logback:logback-classic")
 	implementation("com.redis:testcontainers-redis")
 	implementation("com.zaxxer:HikariCP")
+	implementation("io.grpc:grpc-stub")
+	implementation("io.grpc:grpc-netty")
 	implementation("io.micrometer:micrometer-jakarta9")
 	implementation("io.micrometer:micrometer-tracing")
 	implementation("io.micrometer:micrometer-registry-graphite")
@@ -235,6 +241,7 @@ dependencies {
 	javadocMacros(project(":module:spring-boot-activemq"))
 	javadocMacros(project(":module:spring-boot-artemis"))
 	javadocMacros(project(":module:spring-boot-batch"))
+	javadocMacros(project(":module:spring-boot-batch-data-mongodb"))
 	javadocMacros(project(":module:spring-boot-batch-jdbc"))
 	javadocMacros(project(":module:spring-boot-cache-test"))
 	javadocMacros(project(":module:spring-boot-data-r2dbc-test"))

@@ -672,8 +672,8 @@ class OnBeanCondition extends FilteringSpringBootCondition implements Configurat
 		}
 
 		private Set<BeanType> deducedBeanType(ConditionContext context, AnnotatedTypeMetadata metadata) {
-			if (metadata instanceof MethodMetadata && metadata.isAnnotated(Bean.class.getName())) {
-				return deducedBeanTypeForBeanMethod(context, (MethodMetadata) metadata);
+			if (metadata instanceof MethodMetadata methodMetadata && metadata.isAnnotated(Bean.class.getName())) {
+				return deducedBeanTypeForBeanMethod(context, methodMetadata);
 			}
 			return Collections.emptySet();
 		}

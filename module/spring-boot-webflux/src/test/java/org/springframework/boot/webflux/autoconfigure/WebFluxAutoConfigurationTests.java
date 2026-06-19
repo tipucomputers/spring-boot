@@ -74,10 +74,12 @@ import org.springframework.context.i18n.LocaleContext;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.convert.ConversionService;
+import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.format.Parser;
 import org.springframework.format.Printer;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.format.support.FormattingConversionService;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseCookie;
@@ -337,6 +339,17 @@ class WebFluxAutoConfigurationTests {
 			FormattingConversionService conversionService = context.getBean(FormattingConversionService.class);
 			LocalDateTime dateTime = LocalDateTime.of(2020, 4, 28, 11, 43, 10);
 			assertThat(conversionService.convert(dateTime, String.class)).isEqualTo("2020-04-28 11:43:10");
+		});
+	}
+
+	@Test
+	void embeddedValueResolverIsAppliedToConversionService() {
+		this.contextRunner.withPropertyValues("my.date.format=yyyy-MM-dd").run((context) -> {
+			FormattingConversionService conversionService = context.getBean(FormattingConversionService.class);
+			TypeDescriptor dateType = new TypeDescriptor(FormattedDate.class.getDeclaredField("date"));
+			Date date = Date.from(ZonedDateTime.of(2000, 1, 2, 3, 4, 5, 6, ZoneId.systemDefault()).toInstant());
+			assertThat(conversionService.convert(date, dateType, TypeDescriptor.valueOf(String.class)))
+				.isEqualTo("2000-01-02");
 		});
 	}
 
@@ -897,6 +910,35 @@ class WebFluxAutoConfigurationTests {
 	}
 
 	@Test
+	void apiVersionUsesPathSegmentLast() {
+		this.contextRunner
+			.withPropertyValues("spring.webflux.apiversion.use.path-segment=1",
+					"spring.webflux.apiversion.use.header=hv", "spring.webflux.apiversion.use.query-parameter=rpv",
+					"spring.webflux.apiversion.use.media-type-parameter[application/json]=mtpv")
+			.run((context) -> {
+				DefaultApiVersionStrategy versionStrategy = context.getBean("webFluxApiVersionStrategy",
+						DefaultApiVersionStrategy.class);
+
+				MockServerWebExchange requestWithHeader = MockServerWebExchange
+					.from(MockServerHttpRequest.get("https://example.com/test/456").header("hv", "123"));
+				assertThat(versionStrategy.resolveVersion(requestWithHeader)).isEqualTo("123");
+
+				MockServerWebExchange requestWithQueryParameter = MockServerWebExchange
+					.from(MockServerHttpRequest.get("https://example.com?rpv=123"));
+				assertThat(versionStrategy.resolveVersion(requestWithQueryParameter)).isEqualTo("123");
+
+				MockServerWebExchange requestWithMediaType = MockServerWebExchange
+					.from(MockServerHttpRequest.get("https://example.com/test/456")
+						.header("content-type", "application/json;mtpv=123"));
+				assertThat(versionStrategy.resolveVersion(requestWithMediaType)).isEqualTo("123");
+
+				MockServerWebExchange requestFallbacksToApiSegment = MockServerWebExchange
+					.from(MockServerHttpRequest.get("https://example.com/test/456"));
+				assertThat(versionStrategy.resolveVersion(requestFallbacksToApiSegment)).isEqualTo("456");
+			});
+	}
+
+	@Test
 	void apiVersionBeansAreInjected() {
 		this.contextRunner.withUserConfiguration(ApiVersionConfiguration.class).run((context) -> {
 			DefaultApiVersionStrategy versionStrategy = context.getBean("webFluxApiVersionStrategy",
@@ -1330,6 +1372,13 @@ class WebFluxAutoConfigurationTests {
 		ApiVersionParser<String> apiVersionParser() {
 			return (version) -> String.valueOf(version);
 		}
+
+	}
+
+	static class FormattedDate {
+
+		@DateTimeFormat(pattern = "${my.date.format}")
+		@Nullable Date date;
 
 	}
 

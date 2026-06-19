@@ -48,6 +48,11 @@ public class TracingProperties {
 	 */
 	private final Propagation propagation = new Propagation();
 
+	/**
+	 * Exemplars configuration.
+	 */
+	private final Exemplars exemplars = new Exemplars();
+
 	public Sampling getSampling() {
 		return this.sampling;
 	}
@@ -58,6 +63,10 @@ public class TracingProperties {
 
 	public Propagation getPropagation() {
 		return this.propagation;
+	}
+
+	public Exemplars getExemplars() {
+		return this.exemplars;
 	}
 
 	public static class Sampling {
@@ -244,6 +253,45 @@ public class TracingProperties {
 			 * multiple headers</a> propagation.
 			 */
 			B3_MULTI
+
+		}
+
+	}
+
+	/**
+	 * Exemplars configuration.
+	 */
+	public static class Exemplars {
+
+		/**
+		 * Traces to include as exemplars. 'all' is not supported when using Prometheus.
+		 */
+		private Include include = Include.SAMPLED_TRACES;
+
+		public Include getInclude() {
+			return this.include;
+		}
+
+		public void setInclude(Include include) {
+			this.include = include;
+		}
+
+		public enum Include {
+
+			/**
+			 * Include all traces as exemplars, regardless of whether the span is sampled.
+			 */
+			ALL,
+
+			/**
+			 * Don't include any traces as exemplars.
+			 */
+			NONE,
+
+			/**
+			 * Only include sampled traces as exemplars.
+			 */
+			SAMPLED_TRACES
 
 		}
 

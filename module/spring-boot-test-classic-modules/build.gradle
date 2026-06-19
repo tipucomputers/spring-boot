@@ -1,7 +1,7 @@
 /*
  * Copyright 2012-present the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the License);
+ * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -67,6 +67,9 @@ dependencies {
 	api(project(":module:spring-boot-graphql-test")) {
 		transitive = false
 	}
+	api(project(":module:spring-boot-grpc-test")) {
+		transitive = false
+	}
 	api(project(":module:spring-boot-jdbc-test")) {
 		transitive = false
 	}
@@ -82,7 +85,13 @@ dependencies {
 	api(project(":module:spring-boot-micrometer-tracing-test")) {
 		transitive = false
 	}
+	api(project(":module:spring-boot-restdocs")) {
+		transitive = false
+	}
 	api(project(":module:spring-boot-restclient-test")) {
+		transitive = false
+	}
+	api(project(":module:spring-boot-resttestclient")) {
 		transitive = false
 	}
 	api(project(":module:spring-boot-rsocket-test")) {
@@ -94,6 +103,9 @@ dependencies {
 	api(project(":module:spring-boot-web-server-test")) {
 		transitive = false
 	}
+	api(project(":module:spring-boot-webclient-test")) {
+		transitive = false
+	}
 	api(project(":module:spring-boot-webflux-test")) {
 		transitive = false
 	}
@@ -101,6 +113,9 @@ dependencies {
 		transitive = false
 	}
 	api(project(":module:spring-boot-webservices-test")) {
+		transitive = false
+	}
+	api(project(":module:spring-boot-webtestclient")) {
 		transitive = false
 	}
 }

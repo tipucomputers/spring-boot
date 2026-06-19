@@ -93,7 +93,8 @@ public class StructuredLogFormatterFactory<E> {
 					new JsonMembersCustomizerBuilder(properties).build());
 			allAvailableParameters.add(StructuredLoggingJsonMembersCustomizer.Builder.class,
 					new JsonMembersCustomizerBuilder(properties));
-			allAvailableParameters.add(StackTracePrinter.class, (type) -> getStackTracePrinter(properties));
+			allAvailableParameters.add(StackTracePrinter.class,
+					(type) -> getStackTracePrinter(properties, environment));
 			allAvailableParameters.add(ContextPairs.class, (type) -> getContextPairs(properties));
 			if (availableParameters != null) {
 				availableParameters.accept(allAvailableParameters);
@@ -103,8 +104,10 @@ public class StructuredLogFormatterFactory<E> {
 		commonFormatters.accept(this.commonFormatters);
 	}
 
-	private @Nullable StackTracePrinter getStackTracePrinter(@Nullable StructuredLoggingJsonProperties properties) {
-		return (properties != null && properties.stackTrace() != null) ? properties.stackTrace().createPrinter() : null;
+	private @Nullable StackTracePrinter getStackTracePrinter(@Nullable StructuredLoggingJsonProperties properties,
+			Environment environment) {
+		return (properties != null && properties.stackTrace() != null)
+				? properties.stackTrace().createPrinter(environment) : null;
 	}
 
 	private ContextPairs getContextPairs(@Nullable StructuredLoggingJsonProperties properties) {

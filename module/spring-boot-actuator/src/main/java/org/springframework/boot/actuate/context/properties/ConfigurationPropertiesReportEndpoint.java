@@ -23,10 +23,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.aop.TargetSource;
+import org.springframework.aop.framework.Advised;
 import org.springframework.beans.BeansException;
 import org.springframework.boot.actuate.endpoint.OperationResponseBody;
 import org.springframework.boot.actuate.endpoint.SanitizableData;
@@ -140,14 +141,14 @@ public class ConfigurationPropertiesReportEndpoint implements ApplicationContext
 
 	private ContextConfigurationPropertiesDescriptor describeBeans(ApplicationContext context,
 			Predicate<ConfigurationPropertiesBean> beanFilterPredicate, boolean showUnsanitized) {
+		ApplicationContext parent = context.getParent();
 		Map<String, ConfigurationPropertiesBean> beans = ConfigurationPropertiesBean.getAll(context);
-		Map<String, ConfigurationPropertiesBeanDescriptor> descriptors = beans.values()
+		Map<String, ConfigurationPropertiesBeanDescriptor> descriptors = new LinkedHashMap<>();
+		beans.values()
 			.stream()
 			.filter(beanFilterPredicate)
-			.collect(Collectors.toMap(ConfigurationPropertiesBean::getName,
-					(bean) -> describeBean(bean, showUnsanitized)));
-		return new ContextConfigurationPropertiesDescriptor(descriptors,
-				(context.getParent() != null) ? context.getParent().getId() : null);
+			.forEach((bean) -> descriptors.put(bean.getName(), describeBean(bean, showUnsanitized)));
+		return new ContextConfigurationPropertiesDescriptor(descriptors, (parent != null) ? parent.getId() : null);
 	}
 
 	private ConfigurationPropertiesBeanDescriptor describeBean(ConfigurationPropertiesBean bean,
@@ -168,6 +169,18 @@ public class ConfigurationPropertiesReportEndpoint implements ApplicationContext
 	 */
 	private Map<String, @Nullable Object> safeSerialize(@Nullable Object bean, String prefix) {
 		try {
+			if (bean instanceof Advised advised) {
+				TargetSource targetSource = advised.getTargetSource();
+				Object target = targetSource.getTarget();
+				try {
+					return safeSerialize(target, prefix);
+				}
+				finally {
+					if (target != null) {
+						targetSource.releaseTarget(target);
+					}
+				}
+			}
 			return new HashMap<>(this.serializer.serialize(bean));
 		}
 		catch (Exception ex) {

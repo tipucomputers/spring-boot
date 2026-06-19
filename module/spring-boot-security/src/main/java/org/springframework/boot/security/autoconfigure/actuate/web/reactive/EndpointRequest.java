@@ -69,11 +69,12 @@ public final class EndpointRequest {
 	}
 
 	/**
-	 * Returns a matcher that includes all {@link Endpoint actuator endpoints}. It also
-	 * includes the links endpoint which is present at the base path of the actuator
-	 * endpoints. The {@link EndpointServerWebExchangeMatcher#excluding(Class...)
-	 * excluding} method can be used to further remove specific endpoints if required. For
-	 * example: <pre class="code">
+	 * Returns a matcher that includes all {@link Endpoint actuator endpoints} and
+	 * everything beneath them. It also includes the links endpoint which is present at
+	 * the base path of the actuator endpoints. The
+	 * {@link EndpointServerWebExchangeMatcher#excluding(Class...) excluding} method can
+	 * be used to further remove specific endpoints if required. For example:
+	 * <pre class="code">
 	 * EndpointRequest.toAnyEndpoint().excluding(ShutdownEndpoint.class)
 	 * </pre>
 	 * @return the configured {@link ServerWebExchangeMatcher}
@@ -83,8 +84,8 @@ public final class EndpointRequest {
 	}
 
 	/**
-	 * Returns a matcher that includes the specified {@link Endpoint actuator endpoints}.
-	 * For example: <pre class="code">
+	 * Returns a matcher that includes the specified {@link Endpoint actuator endpoints}
+	 * everything beneath them. For example: <pre class="code">
 	 * EndpointRequest.to(ShutdownEndpoint.class, HealthEndpoint.class)
 	 * </pre>
 	 * @param endpoints the endpoints to include
@@ -95,8 +96,8 @@ public final class EndpointRequest {
 	}
 
 	/**
-	 * Returns a matcher that includes the specified {@link Endpoint actuator endpoints}.
-	 * For example: <pre class="code">
+	 * Returns a matcher that includes the specified {@link Endpoint actuator endpoints}
+	 * everything beneath them. For example: <pre class="code">
 	 * EndpointRequest.to("shutdown", "health")
 	 * </pre>
 	 * @param endpoints the endpoints to include
@@ -236,6 +237,13 @@ public final class EndpointRequest {
 			return (applicationContext != null) ? applicationContext.getParent() : null;
 		}
 
+		protected final @Nullable String getLinksPath(String basePath) {
+			if (StringUtils.hasText(basePath)) {
+				return basePath;
+			}
+			return (this.managementPortType == ManagementPortType.DIFFERENT) ? "/" : null;
+		}
+
 		protected final String toString(List<Object> endpoints, String emptyValue) {
 			return (!endpoints.isEmpty()) ? endpoints.stream()
 				.map(this::getEndpointId)
@@ -302,21 +310,23 @@ public final class EndpointRequest {
 		public EndpointServerWebExchangeMatcher excluding(Class<?>... endpoints) {
 			List<Object> excludes = new ArrayList<>(this.excludes);
 			excludes.addAll(Arrays.asList((Object[]) endpoints));
-			return new EndpointServerWebExchangeMatcher(this.includes, excludes, this.includeLinks, null);
+			return new EndpointServerWebExchangeMatcher(this.includes, excludes, this.includeLinks, this.httpMethod);
 		}
 
 		public EndpointServerWebExchangeMatcher excluding(String... endpoints) {
 			List<Object> excludes = new ArrayList<>(this.excludes);
 			excludes.addAll(Arrays.asList((Object[]) endpoints));
-			return new EndpointServerWebExchangeMatcher(this.includes, excludes, this.includeLinks, null);
+			return new EndpointServerWebExchangeMatcher(this.includes, excludes, this.includeLinks, this.httpMethod);
 		}
 
 		public EndpointServerWebExchangeMatcher excludingLinks() {
-			return new EndpointServerWebExchangeMatcher(this.includes, this.excludes, false, null);
+			return new EndpointServerWebExchangeMatcher(this.includes, this.excludes, false, this.httpMethod);
 		}
 
 		/**
 		 * Restricts the matcher to only consider requests with a particular http method.
+		 * <p>
+		 * The links endpoint, if included, is always matched using {@code GET}.
 		 * @param httpMethod the http method to include
 		 * @return a copy of the matcher further restricted to only match requests with
 		 * the specified http method
@@ -334,7 +344,8 @@ public final class EndpointRequest {
 			streamPaths(this.includes, endpoints).forEach(paths::add);
 			streamPaths(this.excludes, endpoints).forEach(paths::remove);
 			List<ServerWebExchangeMatcher> delegateMatchers = getDelegateMatchers(paths, this.httpMethod);
-			if (this.includeLinks && StringUtils.hasText(endpoints.getBasePath())) {
+			String linksPath = getLinksPath(endpoints.getBasePath());
+			if (this.includeLinks && linksPath != null) {
 				delegateMatchers.add(new LinksServerWebExchangeMatcher());
 			}
 			if (delegateMatchers.isEmpty()) {
@@ -370,10 +381,14 @@ public final class EndpointRequest {
 
 		@Override
 		protected ServerWebExchangeMatcher createDelegate(WebEndpointProperties properties) {
-			if (StringUtils.hasText(properties.getBasePath())) {
-				return new OrServerWebExchangeMatcher(
-						new PathPatternParserServerWebExchangeMatcher(properties.getBasePath()),
-						new PathPatternParserServerWebExchangeMatcher(properties.getBasePath() + "/"));
+			String linksPath = getLinksPath(properties.getBasePath());
+			if (linksPath != null) {
+				List<ServerWebExchangeMatcher> linksMatchers = new ArrayList<>();
+				linksMatchers.add(new PathPatternParserServerWebExchangeMatcher(linksPath, HttpMethod.GET));
+				if (!linksPath.endsWith("/")) {
+					linksMatchers.add(new PathPatternParserServerWebExchangeMatcher(linksPath + "/", HttpMethod.GET));
+				}
+				return new OrServerWebExchangeMatcher(linksMatchers);
 			}
 			return EMPTY_MATCHER;
 		}
@@ -436,12 +451,12 @@ public final class EndpointRequest {
 
 		@Override
 		protected ServerWebExchangeMatcher createDelegate(PathMappedEndpoints endpoints) {
-			Set<String> paths = this.endpoints.stream()
+			List<ServerWebExchangeMatcher> delegateMatchers = this.endpoints.stream()
 				.filter(Objects::nonNull)
 				.map(this::getEndpointId)
 				.flatMap((endpointId) -> streamAdditionalPaths(endpoints, endpointId))
-				.collect(Collectors.toCollection(LinkedHashSet::new));
-			List<ServerWebExchangeMatcher> delegateMatchers = getDelegateMatchers(paths, this.httpMethod);
+				.map((path) -> new PathPatternParserServerWebExchangeMatcher(path, this.httpMethod))
+				.collect(Collectors.toCollection(ArrayList::new));
 			return (!CollectionUtils.isEmpty(delegateMatchers)) ? new OrServerWebExchangeMatcher(delegateMatchers)
 					: EMPTY_MATCHER;
 		}

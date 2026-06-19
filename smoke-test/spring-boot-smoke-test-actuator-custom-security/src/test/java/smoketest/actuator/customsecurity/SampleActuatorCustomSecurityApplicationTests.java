@@ -58,10 +58,9 @@ class SampleActuatorCustomSecurityApplicationTests extends AbstractSampleActuato
 
 	@Test
 	void mvcMatchersCanBeUsedToSecureActuators() {
-		ResponseEntity<Object> entity = beansRestTemplate().getForEntity(getManagementPath() + "/actuator/beans",
-				Object.class);
+		ResponseEntity<Object> entity = beansRestTemplate().getForEntity(getActuatorPath() + "/beans", Object.class);
 		assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.OK);
-		entity = beansRestTemplate().getForEntity(getManagementPath() + "/actuator/beans/", Object.class);
+		entity = beansRestTemplate().getForEntity(getActuatorPath() + "/beans/", Object.class);
 		assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
 	}
 
@@ -71,8 +70,8 @@ class SampleActuatorCustomSecurityApplicationTests extends AbstractSampleActuato
 	}
 
 	@Override
-	String getManagementPath() {
-		return "http://localhost:" + this.port;
+	String getActuatorPath() {
+		return "http://localhost:" + this.port + "/actuator";
 	}
 
 	@Override

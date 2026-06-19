@@ -91,11 +91,13 @@ public final class SessionAutoConfiguration {
 
 		}
 
+		@Configuration(proxyBeanMethods = false)
 		@ConditionalOnNotWarDeployment
 		@EnableConfigurationProperties(ServerProperties.class)
 		static class EmbeddedWebServerConfiguration {
 
 			@Bean
+			@ConditionalOnMissingBean
 			SessionTimeout embeddedWebServerSessionTimeout(SessionProperties sessionProperties,
 					ServerProperties serverProperties) {
 				return () -> determineTimeout(sessionProperties,
@@ -124,8 +126,9 @@ public final class SessionAutoConfiguration {
 
 		}
 
+		@Configuration(proxyBeanMethods = false)
 		@ConditionalOnWarDeployment
-		static class WarDepoymentConfiguration implements ServletContextAware {
+		static class WarDeploymentConfiguration implements ServletContextAware {
 
 			private @Nullable ServletContext servletContext;
 
@@ -135,6 +138,7 @@ public final class SessionAutoConfiguration {
 			}
 
 			@Bean
+			@ConditionalOnMissingBean
 			SessionTimeout warDeplomentSessionTimeout(SessionProperties sessionProperties) {
 				return sessionProperties::getTimeout;
 			}
@@ -170,6 +174,7 @@ public final class SessionAutoConfiguration {
 	static class ReactiveSessionConfiguration {
 
 		@Bean
+		@ConditionalOnMissingBean
 		SessionTimeout embeddedWebServerSessionTimeout(SessionProperties sessionProperties,
 				ServerProperties serverProperties) {
 			return () -> determineTimeout(sessionProperties, serverProperties.getReactive().getSession()::getTimeout);

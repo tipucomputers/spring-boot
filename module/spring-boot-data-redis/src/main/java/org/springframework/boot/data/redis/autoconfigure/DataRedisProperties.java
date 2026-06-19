@@ -22,6 +22,7 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.util.StringUtils;
 
 /**
  * Configuration properties for Redis.
@@ -101,6 +102,8 @@ public class DataRedisProperties {
 	private final Jedis jedis = new Jedis();
 
 	private final Lettuce lettuce = new Lettuce();
+
+	private final Listener listener = new Listener();
 
 	public int getDatabase() {
 		return this.database;
@@ -216,6 +219,10 @@ public class DataRedisProperties {
 
 	public Lettuce getLettuce() {
 		return this.lettuce;
+	}
+
+	public Listener getListener() {
+		return this.listener;
 	}
 
 	/**
@@ -457,7 +464,7 @@ public class DataRedisProperties {
 		private @Nullable String bundle;
 
 		public boolean isEnabled() {
-			return (this.enabled != null) ? this.enabled : this.bundle != null;
+			return (this.enabled != null) ? this.enabled : StringUtils.hasText(this.bundle);
 		}
 
 		public void setEnabled(boolean enabled) {
@@ -576,6 +583,123 @@ public class DataRedisProperties {
 
 			}
 
+		}
+
+	}
+
+	/**
+	 * Listener properties.
+	 */
+	public static class Listener {
+
+		/**
+		 * Whether to start the container automatically on startup.
+		 */
+		private boolean autoStartup = true;
+
+		/**
+		 * Maximum amount of time to wait for the subscription to become active.
+		 */
+		private Duration subscriptionRegistrationTimeout = Duration.ofSeconds(2);
+
+		private final Recovery recovery = new Recovery();
+
+		public boolean isAutoStartup() {
+			return this.autoStartup;
+		}
+
+		public void setAutoStartup(boolean autoStartup) {
+			this.autoStartup = autoStartup;
+		}
+
+		public Duration getSubscriptionRegistrationTimeout() {
+			return this.subscriptionRegistrationTimeout;
+		}
+
+		public void setSubscriptionRegistrationTimeout(Duration subscriptionRegistrationTimeout) {
+			this.subscriptionRegistrationTimeout = subscriptionRegistrationTimeout;
+		}
+
+		public Recovery getRecovery() {
+			return this.recovery;
+		}
+
+	}
+
+	/**
+	 * Recovery properties.
+	 */
+	public static class Recovery {
+
+		/**
+		 * Maximum number of recovery attempts.
+		 */
+		private long maxRetries = Long.MAX_VALUE;
+
+		/**
+		 * Base delay for a recovery attempt. Can be combined with a "multiplier" to use
+		 * an exponential back off strategy.
+		 */
+		private Duration delay = Duration.ofSeconds(5);
+
+		/**
+		 * Multiplier for a delay for the next retry attempt, applied to the previous
+		 * delay, starting with the initial delay as well as to the applicable jitter for
+		 * each attempt. Fixed delay by default.
+		 */
+		private double multiplier = 1.0;
+
+		/**
+		 * Maximum delay for any retry attempt, limiting how far jitter and the multiplier
+		 * can increase the delay.
+		 */
+		private Duration maxDelay = Duration.ofSeconds(30);
+
+		/**
+		 * Jitter value for the base retry attempt, randomly subtracted or added to the
+		 * calculated delay, resulting in a value between 'delay - jitter' and 'delay +
+		 * jitter' but never below the base delay or above the max delay.
+		 */
+		private Duration jitter = Duration.ZERO;
+
+		public long getMaxRetries() {
+			return this.maxRetries;
+		}
+
+		public void setMaxRetries(long maxRetries) {
+			this.maxRetries = maxRetries;
+		}
+
+		public Duration getDelay() {
+			return this.delay;
+		}
+
+		public void setDelay(Duration delay) {
+			this.delay = delay;
+		}
+
+		public double getMultiplier() {
+			return this.multiplier;
+		}
+
+		public void setMultiplier(double multiplier) {
+			this.multiplier = multiplier;
+		}
+
+		public Duration getMaxDelay() {
+			return this.maxDelay;
+		}
+
+		public void setMaxDelay(Duration maxDelay) {
+			this.maxDelay = maxDelay;
+		}
+
+		public Duration getJitter() {
+			return this.jitter;
+		}
+
+		public void setJitter(Duration jitter) {
+			this.jitter = jitter;
 		}
 
 	}

@@ -38,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  * @author Stephane Nicoll
  * @author Rafael Carvalho
  * @author Scott Frederick
+ * @author Jay Choi
  */
 class RabbitPropertiesTests {
 
@@ -336,6 +337,12 @@ class RabbitPropertiesTests {
 	}
 
 	@Test
+	void determineSslEnabledIsFalseWhenBundleIsEmpty() {
+		this.properties.getSsl().setBundle("");
+		assertThat(this.properties.getSsl().determineEnabled()).isFalse();
+	}
+
+	@Test
 	void propertiesUseConsistentDefaultValues() {
 		ConnectionFactory connectionFactory = new ConnectionFactory();
 		assertThat(connectionFactory).hasFieldOrPropertyWithValue("maxInboundMessageBodySize",
@@ -379,6 +386,42 @@ class RabbitPropertiesTests {
 		assertThatExceptionOfType(InvalidConfigurationPropertyValueException.class)
 			.isThrownBy(this.properties::determineAddresses)
 			.withMessageContaining("spring.rabbitmq.host");
+	}
+
+	@Test
+	void streamSslIsDisabledByDefault() {
+		assertThat(this.properties.getStream().getSsl().determineEnabled()).isFalse();
+	}
+
+	@Test
+	void streamSslIsEnabledWhenEnabledIsTrue() {
+		this.properties.getStream().getSsl().setEnabled(true);
+		assertThat(this.properties.getStream().getSsl().determineEnabled()).isTrue();
+	}
+
+	@Test
+	void streamSslIsEnabledWhenBundleIsSet() {
+		this.properties.getStream().getSsl().setBundle("test-bundle");
+		assertThat(this.properties.getStream().getSsl().determineEnabled()).isTrue();
+	}
+
+	@Test
+	void streamSslIsDisabledWhenBundleIsEmpty() {
+		this.properties.getStream().getSsl().setBundle("");
+		assertThat(this.properties.getStream().getSsl().determineEnabled()).isFalse();
+	}
+
+	@Test
+	void streamSslIsDisabledWhenEnabledIsFalseAndBundleIsNotSet() {
+		this.properties.getStream().getSsl().setEnabled(false);
+		assertThat(this.properties.getStream().getSsl().determineEnabled()).isFalse();
+	}
+
+	@Test
+	void streamSslIsEnabledWhenBundleIsSetButEnabledIsFalse() {
+		this.properties.getStream().getSsl().setBundle("test-bundle");
+		this.properties.getStream().getSsl().setEnabled(false);
+		assertThat(this.properties.getStream().getSsl().determineEnabled()).isTrue();
 	}
 
 }

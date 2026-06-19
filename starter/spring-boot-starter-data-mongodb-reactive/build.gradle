@@ -1,7 +1,7 @@
 /*
  * Copyright 2012-present the original author or authors.
  *
- * Licensed under the Apache License, Version 2.0 (the License);
+ * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
@@ -21,7 +21,7 @@ plugins {
 description = "Starter for using MongoDB document-oriented database and Spring Data MongoDB Reactive"
 
 dependencies {
-	api(project(":starter:spring-boot-starter-mongodb"))
+	api(project(":starter:spring-boot-starter"))
 
 	api(project(":module:spring-boot-data-mongodb"))
 	api(project(":module:spring-boot-reactor"))

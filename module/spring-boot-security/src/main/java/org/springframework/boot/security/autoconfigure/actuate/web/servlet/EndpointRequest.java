@@ -67,11 +67,11 @@ public final class EndpointRequest {
 	}
 
 	/**
-	 * Returns a matcher that includes all {@link Endpoint actuator endpoints}. It also
-	 * includes the links endpoint which is present at the base path of the actuator
-	 * endpoints. The {@link EndpointRequestMatcher#excluding(Class...) excluding} method
-	 * can be used to further remove specific endpoints if required. For example:
-	 * <pre class="code">
+	 * Returns a matcher that includes all {@link Endpoint actuator endpoints} and
+	 * everything beneath them. It also includes the links endpoint which is present at
+	 * the base path of the actuator endpoints. The
+	 * {@link EndpointRequestMatcher#excluding(Class...) excluding} method can be used to
+	 * further remove specific endpoints if required. For example: <pre class="code">
 	 * EndpointRequest.toAnyEndpoint().excluding(ShutdownEndpoint.class)
 	 * </pre>
 	 * @return the configured {@link RequestMatcher}
@@ -81,8 +81,8 @@ public final class EndpointRequest {
 	}
 
 	/**
-	 * Returns a matcher that includes the specified {@link Endpoint actuator endpoints}.
-	 * For example: <pre class="code">
+	 * Returns a matcher that includes the specified {@link Endpoint actuator endpoints}
+	 * and everything beneath them. For example: <pre class="code">
 	 * EndpointRequest.to(ShutdownEndpoint.class, HealthEndpoint.class)
 	 * </pre>
 	 * @param endpoints the endpoints to include
@@ -93,8 +93,8 @@ public final class EndpointRequest {
 	}
 
 	/**
-	 * Returns a matcher that includes the specified {@link Endpoint actuator endpoints}.
-	 * For example: <pre class="code">
+	 * Returns a matcher that includes the specified {@link Endpoint actuator endpoints}
+	 * and everything beneath them. For example: <pre class="code">
 	 * EndpointRequest.to("shutdown", "health")
 	 * </pre>
 	 * @param endpoints the endpoints to include
@@ -224,11 +224,25 @@ public final class EndpointRequest {
 		}
 
 		protected List<RequestMatcher> getLinksMatchers(RequestMatcherFactory requestMatcherFactory,
-				RequestMatcherProvider matcherProvider, String basePath) {
+				RequestMatcherProvider matcherProvider, String linksPath) {
 			List<RequestMatcher> linksMatchers = new ArrayList<>();
-			linksMatchers.add(requestMatcherFactory.antPath(matcherProvider, null, basePath));
-			linksMatchers.add(requestMatcherFactory.antPath(matcherProvider, null, basePath, "/"));
+			linksMatchers.add(requestMatcherFactory.antPath(matcherProvider, HttpMethod.GET, linksPath));
+			if (!linksPath.endsWith("/")) {
+				linksMatchers.add(requestMatcherFactory.antPath(matcherProvider, HttpMethod.GET, linksPath, "/"));
+			}
 			return linksMatchers;
+		}
+
+		protected @Nullable String getLinksPath(WebApplicationContext context, String basePath) {
+			if (StringUtils.hasText(basePath)) {
+				return basePath;
+			}
+			ManagementPortType managementPortType = this.managementPortType;
+			if (managementPortType == null) {
+				managementPortType = ManagementPortType.get(context.getEnvironment());
+				this.managementPortType = managementPortType;
+			}
+			return (managementPortType == ManagementPortType.DIFFERENT) ? "/" : null;
 		}
 
 		protected RequestMatcherProvider getRequestMatcherProvider(WebApplicationContext context) {
@@ -304,21 +318,23 @@ public final class EndpointRequest {
 		public EndpointRequestMatcher excluding(Class<?>... endpoints) {
 			List<Object> excludes = new ArrayList<>(this.excludes);
 			excludes.addAll(Arrays.asList((Object[]) endpoints));
-			return new EndpointRequestMatcher(this.includes, excludes, this.includeLinks, null);
+			return new EndpointRequestMatcher(this.includes, excludes, this.includeLinks, this.httpMethod);
 		}
 
 		public EndpointRequestMatcher excluding(String... endpoints) {
 			List<Object> excludes = new ArrayList<>(this.excludes);
 			excludes.addAll(Arrays.asList((Object[]) endpoints));
-			return new EndpointRequestMatcher(this.includes, excludes, this.includeLinks, null);
+			return new EndpointRequestMatcher(this.includes, excludes, this.includeLinks, this.httpMethod);
 		}
 
 		public EndpointRequestMatcher excludingLinks() {
-			return new EndpointRequestMatcher(this.includes, this.excludes, false, null);
+			return new EndpointRequestMatcher(this.includes, this.excludes, false, this.httpMethod);
 		}
 
 		/**
 		 * Restricts the matcher to only consider requests with a particular HTTP method.
+		 * <p>
+		 * The links endpoint, if included, is always matched using {@code GET}.
 		 * @param httpMethod the HTTP method to include
 		 * @return a copy of the matcher further restricted to only match requests with
 		 * the specified HTTP method
@@ -341,8 +357,9 @@ public final class EndpointRequest {
 			List<RequestMatcher> delegateMatchers = getDelegateMatchers(requestMatcherFactory, matcherProvider, paths,
 					this.httpMethod);
 			String basePath = endpoints.getBasePath();
-			if (this.includeLinks && StringUtils.hasText(basePath)) {
-				delegateMatchers.addAll(getLinksMatchers(requestMatcherFactory, matcherProvider, basePath));
+			String linksPath = getLinksPath(context, basePath);
+			if (this.includeLinks && linksPath != null) {
+				delegateMatchers.addAll(getLinksMatchers(requestMatcherFactory, matcherProvider, linksPath));
 			}
 			if (delegateMatchers.isEmpty()) {
 				return EMPTY_MATCHER;
@@ -375,10 +392,10 @@ public final class EndpointRequest {
 		protected RequestMatcher createDelegate(WebApplicationContext context,
 				RequestMatcherFactory requestMatcherFactory) {
 			WebEndpointProperties properties = context.getBean(WebEndpointProperties.class);
-			String basePath = properties.getBasePath();
-			if (StringUtils.hasText(basePath)) {
+			String linksPath = getLinksPath(context, properties.getBasePath());
+			if (linksPath != null) {
 				return new OrRequestMatcher(
-						getLinksMatchers(requestMatcherFactory, getRequestMatcherProvider(context), basePath));
+						getLinksMatchers(requestMatcherFactory, getRequestMatcherProvider(context), linksPath));
 			}
 			return EMPTY_MATCHER;
 		}
@@ -441,13 +458,12 @@ public final class EndpointRequest {
 				RequestMatcherFactory requestMatcherFactory) {
 			PathMappedEndpoints endpoints = context.getBean(PathMappedEndpoints.class);
 			RequestMatcherProvider matcherProvider = getRequestMatcherProvider(context);
-			Set<String> paths = this.endpoints.stream()
+			List<RequestMatcher> delegateMatchers = this.endpoints.stream()
 				.filter(Objects::nonNull)
 				.map(this::getEndpointId)
 				.flatMap((endpointId) -> streamAdditionalPaths(endpoints, endpointId))
-				.collect(Collectors.toCollection(LinkedHashSet::new));
-			List<RequestMatcher> delegateMatchers = getDelegateMatchers(requestMatcherFactory, matcherProvider, paths,
-					this.httpMethod);
+				.map((path) -> requestMatcherFactory.antPath(matcherProvider, this.httpMethod, path))
+				.collect(Collectors.toCollection(ArrayList::new));
 			return (!CollectionUtils.isEmpty(delegateMatchers)) ? new OrRequestMatcher(delegateMatchers)
 					: EMPTY_MATCHER;
 		}

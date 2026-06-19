@@ -59,6 +59,7 @@ import org.springframework.util.StringUtils;
  *
  * @author Phillip Webb
  * @author Madhura Bhave
+ * @author Nan Chiu
  */
 class ConfigDataEnvironment {
 
@@ -199,30 +200,33 @@ class ConfigDataEnvironment {
 
 	private List<ConfigDataEnvironmentContributor> getInitialImportContributors(Binder binder) {
 		List<ConfigDataEnvironmentContributor> initialContributors = new ArrayList<>();
-		addInitialImportContributors(initialContributors, bindLocations(binder, IMPORT_PROPERTY, EMPTY_LOCATIONS));
-		addInitialImportContributors(initialContributors,
-				bindLocations(binder, ADDITIONAL_LOCATION_PROPERTY, EMPTY_LOCATIONS));
-		addInitialImportContributors(initialContributors,
-				bindLocations(binder, LOCATION_PROPERTY, DEFAULT_SEARCH_LOCATIONS));
+		addInitialImportContributors(initialContributors, binder, IMPORT_PROPERTY, EMPTY_LOCATIONS, false);
+		addInitialImportContributors(initialContributors, binder, ADDITIONAL_LOCATION_PROPERTY, EMPTY_LOCATIONS, true);
+		addInitialImportContributors(initialContributors, binder, LOCATION_PROPERTY, DEFAULT_SEARCH_LOCATIONS, true);
 		return initialContributors;
 	}
 
-	private ConfigDataLocation[] bindLocations(Binder binder, String propertyName, ConfigDataLocation[] other) {
-		return binder.bind(propertyName, CONFIG_DATA_LOCATION_ARRAY).orElse(other);
-	}
-
-	private void addInitialImportContributors(List<ConfigDataEnvironmentContributor> initialContributors,
-			ConfigDataLocation[] locations) {
-		for (int i = locations.length - 1; i >= 0; i--) {
-			if (ConfigDataLocation.isNotEmpty(locations[i])) {
-				initialContributors.add(createInitialImportContributor(locations[i]));
+	private void addInitialImportContributors(List<ConfigDataEnvironmentContributor> initialContributors, Binder binder,
+			String propertyName, ConfigDataLocation[] defaultValue, boolean registerIndividually) {
+		ConfigDataLocation[] locations = binder.bind(propertyName, CONFIG_DATA_LOCATION_ARRAY).orElse(defaultValue);
+		if (registerIndividually) {
+			for (int i = locations.length - 1; i >= 0; i--) {
+				addInitialImportContributors(initialContributors, List.of(locations[i]));
 			}
+		}
+		else {
+			addInitialImportContributors(initialContributors, List.of(locations));
 		}
 	}
 
-	private ConfigDataEnvironmentContributor createInitialImportContributor(ConfigDataLocation location) {
-		this.logger.trace(LogMessage.format("Adding initial config data import from location '%s'", location));
-		return ConfigDataEnvironmentContributor.ofInitialImport(location, this.environment.getConversionService());
+	private void addInitialImportContributors(List<ConfigDataEnvironmentContributor> initialContributors,
+			List<ConfigDataLocation> locations) {
+		if (!locations.isEmpty()) {
+			this.logger.trace(LogMessage.format("Adding initial config data import from locations %s", locations));
+			ConfigDataEnvironmentContributor contributor = ConfigDataEnvironmentContributor.ofInitialImports(locations,
+					this.environment.getConversionService());
+			initialContributors.add(contributor);
+		}
 	}
 
 	/**

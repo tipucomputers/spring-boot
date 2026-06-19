@@ -18,7 +18,6 @@ package org.springframework.boot.build.assertj;
 
 import java.io.File;
 
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
@@ -30,14 +29,14 @@ import org.assertj.core.api.StringAssert;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
+import org.springframework.boot.build.xml.XmlDocument;
+
 /**
  * AssertJ {@link AssertProvider} for {@link Node} assertions.
  *
  * @author Andy Wilkinson
  */
 public class NodeAssert extends AbstractAssert<NodeAssert, Node> implements AssertProvider<NodeAssert> {
-
-	private static final DocumentBuilderFactory FACTORY = DocumentBuilderFactory.newInstance();
 
 	private final XPathFactory xpathFactory = XPathFactory.newInstance();
 
@@ -53,7 +52,7 @@ public class NodeAssert extends AbstractAssert<NodeAssert, Node> implements Asse
 
 	private static Document read(File xmlFile) {
 		try {
-			return FACTORY.newDocumentBuilder().parse(xmlFile);
+			return XmlDocument.parse(xmlFile);
 		}
 		catch (Exception ex) {
 			throw new RuntimeException(ex);

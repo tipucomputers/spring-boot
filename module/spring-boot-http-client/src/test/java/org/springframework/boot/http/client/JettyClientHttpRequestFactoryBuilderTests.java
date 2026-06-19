@@ -19,13 +19,18 @@ package org.springframework.boot.http.client;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.HttpClientTransport;
 import org.eclipse.jetty.client.transport.HttpClientTransportOverHTTP;
+import org.eclipse.jetty.http.HttpCookieStore;
 import org.eclipse.jetty.io.ClientConnector;
+import org.eclipse.jetty.util.SocketAddressResolver;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import org.springframework.http.client.JettyClientHttpRequestFactory;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 /**
  * Tests for {@link JettyClientHttpRequestFactoryBuilder} and
@@ -73,6 +78,48 @@ class JettyClientHttpRequestFactoryBuilderTests
 		assertThat(factory).extracting("httpClient")
 			.extracting("transport")
 			.isInstanceOf(TestHttpClientTransport.class);
+	}
+
+	@Test
+	void withSocketAddressResolver() {
+		SocketAddressResolver socketAddressResolver = mock();
+		JettyClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.jetty()
+			.withSocketAddressResolver(socketAddressResolver)
+			.build();
+		assertThat(factory).extracting("httpClient.resolver").isSameAs(socketAddressResolver);
+	}
+
+	@Test
+	void withSocketAddressResolverWhenHasInetAddressMatcher() {
+		SocketAddressResolver socketAddressResolver = mock();
+		JettyClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.jetty()
+			.withSocketAddressResolver(socketAddressResolver)
+			.build(HttpClientSettings.defaults().withInetAddressFilter(InetAddressFilter.externalAddresses()));
+		assertThat(factory).extracting("httpClient.resolver")
+			.matches((resolver) -> resolver.getClass().getName().contains("JettyFiltered"));
+		assertThat(factory).extracting("httpClient.resolver.delegate").isSameAs(socketAddressResolver);
+	}
+
+	@Test
+	void defaultCookieHandling() {
+		JettyClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.jetty()
+			.build(HttpClientSettings.defaults());
+		assertThat(factory).extracting("httpClient.cookieStore").isNull();
+	}
+
+	@Test
+	void cookieHandlingDisabled() {
+		JettyClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.jetty()
+			.build(HttpClientSettings.defaults().withCookieHandling(HttpCookieHandling.DISABLE));
+		assertThat(factory).extracting("httpClient.cookieStore").isInstanceOf(HttpCookieStore.Empty.class);
+	}
+
+	@ParameterizedTest
+	@EnumSource(names = { "ENABLE", "ENABLE_WHEN_POSSIBLE" })
+	void cookieHandlingEnabled(HttpCookieHandling cookieHandling) {
+		JettyClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.jetty()
+			.build(HttpClientSettings.defaults().withCookieHandling(cookieHandling));
+		assertThat(factory).extracting("httpClient.cookieStore").isInstanceOf(HttpCookieStore.Default.class);
 	}
 
 	@Override

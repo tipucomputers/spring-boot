@@ -319,7 +319,7 @@ public final class FlywayAutoConfiguration {
 				map.from(properties.isExecuteInTransaction()).to(configuration::executeInTransaction);
 			}
 			catch (NoSuchMethodError ex) {
-				// Flyway < 9.14
+				// Flyway < 10.x/11.x compatibility
 			}
 		}
 
@@ -480,7 +480,7 @@ public final class FlywayAutoConfiguration {
 
 		@Override
 		public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
-			hints.resources().registerPattern("db/migration/*");
+			hints.resources().registerPattern("db/migration/**");
 		}
 
 	}

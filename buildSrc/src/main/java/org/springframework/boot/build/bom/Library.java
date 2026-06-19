@@ -35,8 +35,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathFactory;
 
@@ -51,6 +49,7 @@ import org.w3c.dom.Document;
 
 import org.springframework.boot.build.bom.ResolvedBom.Id;
 import org.springframework.boot.build.bom.bomr.version.DependencyVersion;
+import org.springframework.boot.build.xml.XmlDocument;
 
 /**
  * A collection of modules, Maven plugins, and Maven boms that are versioned and released
@@ -665,6 +664,9 @@ public class Library {
 		}
 
 		private List<Dependency> getBomDependencies(Library manager) {
+			if (manager == null) {
+				return Collections.emptyList();
+			}
 			return manager.getGroups()
 				.stream()
 				.flatMap((group) -> group.getBoms()
@@ -676,8 +678,7 @@ public class Library {
 
 		private String propertyFrom(File pomFile) {
 			try {
-				DocumentBuilder documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-				Document document = documentBuilder.parse(pomFile);
+				Document document = XmlDocument.parse(pomFile);
 				XPath xpath = XPathFactory.newInstance().newXPath();
 				return xpath.evaluate("/project/properties/" + this.name + "/text()", document);
 			}

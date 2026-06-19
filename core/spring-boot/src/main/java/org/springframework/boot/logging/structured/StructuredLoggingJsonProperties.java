@@ -102,7 +102,7 @@ record StructuredLoggingJsonProperties(Set<String> include, Set<String> exclude,
 			@Nullable Integer maxThrowableDepth, @Nullable Boolean includeCommonFrames,
 			@Nullable Boolean includeHashes) {
 
-		@Nullable StackTracePrinter createPrinter() {
+		@Nullable StackTracePrinter createPrinter(Environment environment) {
 			String name = sanitizePrinter();
 			if ("loggingsystem".equals(name) || (name.isEmpty() && !hasAnyOtherProperty())) {
 				return null;
@@ -112,9 +112,10 @@ record StructuredLoggingJsonProperties(Set<String> include, Set<String> exclude,
 				return standardPrinter;
 			}
 			Assert.state(printer() != null, "'printer' must not be null");
-			return (StackTracePrinter) new Instantiator<>(StackTracePrinter.class,
-					(parameters) -> parameters.add(StandardStackTracePrinter.class, standardPrinter))
-				.instantiate(printer());
+			return (StackTracePrinter) new Instantiator<>(StackTracePrinter.class, (parameters) -> {
+				parameters.add(StandardStackTracePrinter.class, standardPrinter);
+				parameters.add(Environment.class, environment);
+			}).instantiate(printer());
 		}
 
 		boolean hasCustomPrinter() {

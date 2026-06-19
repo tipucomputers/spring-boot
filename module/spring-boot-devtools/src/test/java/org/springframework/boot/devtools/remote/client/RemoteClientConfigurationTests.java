@@ -92,7 +92,7 @@ class RemoteClientConfigurationTests {
 	}
 
 	@Test
-	void doesntWarnIfUsingHttps(CapturedOutput output) {
+	void doesNotWarnIfUsingHttps(CapturedOutput output) {
 		configure("https://localhost", true);
 		assertThat(output).doesNotContain("is insecure");
 	}
@@ -104,6 +104,7 @@ class RemoteClientConfigurationTests {
 	}
 
 	@Test
+	@SuppressWarnings("removal")
 	void liveReloadOnClassPathChanged() {
 		configure("spring.devtools.livereload.enabled:true");
 		Set<ChangedFiles> changeSet = new HashSet<>();
@@ -115,6 +116,7 @@ class RemoteClientConfigurationTests {
 	}
 
 	@Test
+	@SuppressWarnings("removal")
 	void liveReloadDisabledByDefault() {
 		configure();
 		assertThatExceptionOfType(NoSuchBeanDefinitionException.class)
@@ -185,6 +187,7 @@ class RemoteClientConfigurationTests {
 	}
 
 	@Configuration(proxyBeanMethods = false)
+	@SuppressWarnings("removal")
 	static class ClientConfig {
 
 		@Bean

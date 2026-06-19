@@ -26,6 +26,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
@@ -57,6 +58,7 @@ import org.springframework.util.StringUtils;
  * The {@code 'extract'} tools command.
  *
  * @author Moritz Halbritter
+ * @author Dongliang Xie
  */
 class ExtractCommand extends Command {
 
@@ -363,12 +365,16 @@ class ExtractCommand extends Command {
 	}
 
 	private static File assertFileIsContainedInDirectory(File directory, File file, String name) throws IOException {
-		String canonicalOutputPath = directory.getCanonicalPath() + File.separator;
-		String canonicalEntryPath = file.getCanonicalPath();
-		Assert.state(canonicalEntryPath.startsWith(canonicalOutputPath),
+		Path canonicalOutputPath = directory.getCanonicalFile().toPath();
+		Path canonicalEntryPath = file.getCanonicalFile().toPath();
+		Assert.state(isFileContainedInDirectory(canonicalOutputPath, canonicalEntryPath),
 				() -> "Entry '%s' would be written to '%s'. This is outside the output location of '%s'. Verify the contents of your archive."
 					.formatted(name, canonicalEntryPath, canonicalOutputPath));
 		return file;
+	}
+
+	private static boolean isFileContainedInDirectory(Path directory, Path file) {
+		return !file.equals(directory) && file.startsWith(directory);
 	}
 
 	@FunctionalInterface
@@ -489,8 +495,8 @@ class ExtractCommand extends Command {
 		public @Nullable File resolve(String originalName, String newName) throws IOException {
 			String layer = this.layers.getLayer(originalName);
 			if (shouldExtractLayer(layer)) {
-				File directory = getLayerDirectory(layer);
-				return assertFileIsContainedInDirectory(directory, new File(directory, newName), newName);
+				File layerDirectory = getLayerDirectory(layer);
+				return assertFileIsContainedInDirectory(layerDirectory, new File(layerDirectory, newName), newName);
 			}
 			return null;
 		}
@@ -499,19 +505,28 @@ class ExtractCommand extends Command {
 		public @Nullable File resolveApplication() throws IOException {
 			String layer = this.layers.getApplicationLayerName();
 			if (shouldExtractLayer(layer)) {
-				File directory = getLayerDirectory(layer);
-				return assertFileIsContainedInDirectory(directory, new File(directory, this.applicationFilename),
-						this.applicationFilename);
+				File layerDirectory = getLayerDirectory(layer);
+				return assertFileIsContainedInDirectory(layerDirectory,
+						new File(layerDirectory, this.applicationFilename), this.applicationFilename);
 			}
 			return null;
 		}
 
-		private File getLayerDirectory(String layer) {
-			return new File(this.directory, layer);
+		private File getLayerDirectory(String layer) throws IOException {
+			return assertLayerDirectoryLocation(new File(this.directory, layer), layer);
 		}
 
 		private boolean shouldExtractLayer(String layer) {
 			return this.layersToExtract.isEmpty() || this.layersToExtract.contains(layer);
+		}
+
+		private File assertLayerDirectoryLocation(File layerDirectory, String layerName) throws IOException {
+			Path canonicalOutputPath = this.directory.getCanonicalFile().toPath();
+			Path canonicalLayerPath = layerDirectory.getCanonicalFile().toPath();
+			Assert.state(isFileContainedInDirectory(canonicalOutputPath, canonicalLayerPath),
+					() -> "Layer '%s' would be written to '%s'. This is outside the output location of '%s'. Verify the contents of your archive."
+						.formatted(layerName, canonicalLayerPath, canonicalOutputPath));
+			return layerDirectory;
 		}
 
 	}

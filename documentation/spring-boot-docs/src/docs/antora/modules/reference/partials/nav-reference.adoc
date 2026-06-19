@@ -40,6 +40,7 @@
 ** xref:reference:io/index.adoc[]
 *** xref:reference:io/caching.adoc[]
 *** xref:reference:io/spring-batch.adoc[]
+*** xref:reference:io/grpc.adoc[]
 *** xref:reference:io/hazelcast.adoc[]
 *** xref:reference:io/quartz.adoc[]
 *** xref:reference:io/email.adoc[]
@@ -56,6 +57,10 @@
 *** xref:reference:messaging/rsocket.adoc[]
 *** xref:reference:messaging/spring-integration.adoc[]
 *** xref:reference:messaging/websockets.adoc[]
+
+** xref:reference:security/index.adoc[]
+*** xref:reference:security/oauth2.adoc[]
+*** xref:reference:security/saml2.adoc[]
 
 ** xref:reference:testing/index.adoc[]
 *** xref:reference:testing/test-modules.adoc[]

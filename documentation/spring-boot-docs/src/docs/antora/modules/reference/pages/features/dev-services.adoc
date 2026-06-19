@@ -84,16 +84,16 @@ The following service connections are currently supported:
 | Connection Details | Matched on
 
 | javadoc:org.springframework.boot.activemq.autoconfigure.ActiveMQConnectionDetails[]
-| Containers named "symptoma/activemq" or "apache/activemq-classic"
+| Containers named "symptoma/activemq", "apache/activemq-classic" or "apache/activemq"
 
 | javadoc:org.springframework.boot.artemis.autoconfigure.ArtemisConnectionDetails[]
-| Containers named "apache/activemq-artemis"
+| Containers named "apache/activemq-artemis" or "apache/artemis"
 
 | javadoc:org.springframework.boot.cassandra.autoconfigure.CassandraConnectionDetails[]
 | Containers named "cassandra"
 
 | javadoc:org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchConnectionDetails[]
-| Containers named "elasticsearch"
+| Containers named "elasticsearch" or "elasticsearch/elasticsearch"
 
 | javadoc:org.springframework.boot.hazelcast.autoconfigure.HazelcastConnectionDetails[]
 | Containers named "hazelcast/hazelcast".
@@ -152,7 +152,8 @@ SSL is supported for the following service connections:
 * Cassandra
 * Elasticsearch
 * MongoDB
-* RabbitMQ (excluding streams)
+* RabbitMQ
+* RabbitMQ Streams
 * Redis
 
 To enable SSL support for a service, you can use https://docs.docker.com/reference/compose-file/services/#labels[service labels].

@@ -24,13 +24,18 @@ import java.util.function.UnaryOperator;
 
 import io.netty.channel.ChannelOption;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import reactor.netty.http.client.HttpClient;
 
+import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.ReactorClientHttpRequestFactory;
 import org.springframework.http.client.ReactorResourceFactory;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.spy;
 
@@ -57,6 +62,29 @@ class ReactorClientHttpRequestFactoryBuilderTests
 		};
 		ClientHttpRequestFactoryBuilder.reactor().withHttpClientFactory(httpClientFactory).build();
 		assertThat(called).containsExactly(true);
+	}
+
+	@Test
+	void springHttpClientDefaults() {
+		ClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.reactor().build();
+		assertThat(factory).extracting("httpClient.config.acceptGzip").isEqualTo(true);
+	}
+
+	@Test
+	void withoutHttpClientDefaults() {
+		ClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.reactor()
+			.withoutHttpClientDefaults()
+			.build();
+		assertThat(factory).extracting("httpClient.config.acceptGzip").isEqualTo(false);
+	}
+
+	@Test
+	void withHttpClientDefaults() {
+		ClientHttpRequestFactory factory = ClientHttpRequestFactoryBuilder.reactor()
+			.withHttpClientDefaults((httpClient) -> httpClient.baseUrl("test"))
+			.build();
+		assertThat(factory).extracting("httpClient.config.acceptGzip").isEqualTo(false);
+		assertThat(factory).extracting("httpClient.config.baseUrl").isEqualTo("test");
 	}
 
 	@Test
@@ -96,6 +124,19 @@ class ReactorClientHttpRequestFactoryBuilderTests
 			.with((builder) -> builder.withHttpClientFactory(httpClientFactory))
 			.build();
 		assertThat(called).containsExactly(true);
+	}
+
+	@ParameterizedTest
+	@EnumSource(names = { "DISABLE", "ENABLE_WHEN_POSSIBLE" })
+	void doesNotThrowWhenCookieHandlingNotEnabled(HttpCookieHandling cookieHandling) {
+		assertThatNoException().isThrownBy(() -> ClientHttpRequestFactoryBuilder.reactor()
+			.build(HttpClientSettings.defaults().withCookieHandling(cookieHandling)));
+	}
+
+	@Test
+	void throwsWhenCookieHandlingEnabled() {
+		assertThatIllegalArgumentException().isThrownBy(() -> ClientHttpRequestFactoryBuilder.reactor()
+			.build(HttpClientSettings.defaults().withCookieHandling(HttpCookieHandling.ENABLE)));
 	}
 
 	@Override

@@ -28,7 +28,9 @@ import org.eclipse.jetty.client.HttpClientTransport;
 import org.eclipse.jetty.client.Request;
 import org.eclipse.jetty.client.transport.HttpClientTransportDynamic;
 import org.eclipse.jetty.client.transport.HttpClientTransportOverHTTP;
+import org.eclipse.jetty.http.HttpCookieStore;
 import org.eclipse.jetty.io.ClientConnector;
+import org.eclipse.jetty.util.SocketAddressResolver;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.jspecify.annotations.Nullable;
 
@@ -55,18 +57,23 @@ public final class JettyHttpClientBuilder {
 
 	private final Consumer<ClientConnector> clientConnectorCustomizerCustomizer;
 
+	private final @Nullable SocketAddressResolver socketAddressResolver;
+
 	public JettyHttpClientBuilder() {
-		this(Empty.consumer(), JettyHttpClientBuilder::createHttpClientTransport, Empty.consumer(), Empty.consumer());
+		this(Empty.consumer(), JettyHttpClientBuilder::createHttpClientTransport, Empty.consumer(), Empty.consumer(),
+				null);
 	}
 
 	private JettyHttpClientBuilder(Consumer<HttpClient> customizer,
 			Function<ClientConnector, HttpClientTransport> httpClientTransportFactory,
 			Consumer<HttpClientTransport> httpClientTransportCustomizer,
-			Consumer<ClientConnector> clientConnectorCustomizerCustomizer) {
+			Consumer<ClientConnector> clientConnectorCustomizerCustomizer,
+			@Nullable SocketAddressResolver socketAddressResolver) {
 		this.customizer = customizer;
 		this.httpClientTransportFactory = httpClientTransportFactory;
 		this.httpClientTransportCustomizer = httpClientTransportCustomizer;
 		this.clientConnectorCustomizerCustomizer = clientConnectorCustomizerCustomizer;
+		this.socketAddressResolver = socketAddressResolver;
 	}
 
 	private static HttpClientTransport createHttpClientTransport(ClientConnector connector) {
@@ -75,57 +82,73 @@ public final class JettyHttpClientBuilder {
 	}
 
 	/**
-	 * Return a new {@link JettyClientHttpRequestFactoryBuilder} that applies additional
-	 * customization to the underlying {@link HttpClient}.
+	 * Return a new {@link JettyHttpClientBuilder} that applies additional customization
+	 * to the underlying {@link HttpClient}.
 	 * @param customizer the customizer to apply
-	 * @return a new {@link JettyClientHttpRequestFactoryBuilder} instance
+	 * @return a new {@link JettyHttpClientBuilder} instance
 	 */
 	public JettyHttpClientBuilder withCustomizer(Consumer<HttpClient> customizer) {
 		Assert.notNull(customizer, "'customizer' must not be null");
 		return new JettyHttpClientBuilder(this.customizer.andThen(customizer), this.httpClientTransportFactory,
-				this.httpClientTransportCustomizer, this.clientConnectorCustomizerCustomizer);
+				this.httpClientTransportCustomizer, this.clientConnectorCustomizerCustomizer,
+				this.socketAddressResolver);
 	}
 
 	/**
-	 * Return a new {@link JettyClientHttpRequestFactoryBuilder} that uses the given
-	 * factory to create the {@link HttpClientTransport}.
+	 * Return a new {@link JettyHttpClientBuilder} that uses the given factory to create
+	 * the {@link HttpClientTransport}.
 	 * @param httpClientTransportFactory the {@link HttpClientTransport} factory to use
-	 * @return a new {@link JettyClientHttpRequestFactoryBuilder} instance
+	 * @return a new {@link JettyHttpClientBuilder} instance
 	 * @since 4.0.0
 	 */
 	public JettyHttpClientBuilder withHttpClientTransportFactory(
 			Function<ClientConnector, HttpClientTransport> httpClientTransportFactory) {
 		Assert.notNull(httpClientTransportFactory, "'httpClientTransportFactory' must not be null");
 		return new JettyHttpClientBuilder(this.customizer, httpClientTransportFactory,
-				this.httpClientTransportCustomizer, this.clientConnectorCustomizerCustomizer);
+				this.httpClientTransportCustomizer, this.clientConnectorCustomizerCustomizer,
+				this.socketAddressResolver);
 	}
 
 	/**
-	 * Return a new {@link JettyClientHttpRequestFactoryBuilder} that applies additional
-	 * customization to the underlying {@link HttpClientTransport}.
+	 * Return a new {@link JettyHttpClientBuilder} that applies additional customization
+	 * to the underlying {@link HttpClientTransport}.
 	 * @param httpClientTransportCustomizer the customizer to apply
-	 * @return a new {@link JettyClientHttpRequestFactoryBuilder} instance
+	 * @return a new {@link JettyHttpClientBuilder} instance
 	 */
 	public JettyHttpClientBuilder withHttpClientTransportCustomizer(
 			Consumer<HttpClientTransport> httpClientTransportCustomizer) {
 		Assert.notNull(httpClientTransportCustomizer, "'httpClientTransportCustomizer' must not be null");
 		return new JettyHttpClientBuilder(this.customizer, this.httpClientTransportFactory,
 				this.httpClientTransportCustomizer.andThen(httpClientTransportCustomizer),
-				this.clientConnectorCustomizerCustomizer);
+				this.clientConnectorCustomizerCustomizer, this.socketAddressResolver);
 	}
 
 	/**
-	 * Return a new {@link JettyClientHttpRequestFactoryBuilder} that applies additional
-	 * customization to the underlying {@link ClientConnector}.
+	 * Return a new {@link JettyHttpClientBuilder} that applies additional customization
+	 * to the underlying {@link ClientConnector}.
 	 * @param clientConnectorCustomizerCustomizer the customizer to apply
-	 * @return a new {@link JettyClientHttpRequestFactoryBuilder} instance
+	 * @return a new {@link JettyHttpClientBuilder} instance
 	 */
 	public JettyHttpClientBuilder withClientConnectorCustomizerCustomizer(
 			Consumer<ClientConnector> clientConnectorCustomizerCustomizer) {
 		Assert.notNull(clientConnectorCustomizerCustomizer, "'clientConnectorCustomizerCustomizer' must not be null");
 		return new JettyHttpClientBuilder(this.customizer, this.httpClientTransportFactory,
 				this.httpClientTransportCustomizer,
-				this.clientConnectorCustomizerCustomizer.andThen(clientConnectorCustomizerCustomizer));
+				this.clientConnectorCustomizerCustomizer.andThen(clientConnectorCustomizerCustomizer),
+				this.socketAddressResolver);
+	}
+
+	/**
+	 * Return a new {@link JettyHttpClientBuilder} with a replacement
+	 * {@link SocketAddressResolver}.
+	 * @param socketAddressResolver the new socket address resolver
+	 * @return a new {@link JettyHttpClientBuilder} instance
+	 * @since 4.1.0
+	 */
+	public JettyHttpClientBuilder withSocketAddressResolver(SocketAddressResolver socketAddressResolver) {
+		Assert.notNull(socketAddressResolver, "'socketAddressResolver' must not be null");
+		return new JettyHttpClientBuilder(this.customizer, this.httpClientTransportFactory,
+				this.httpClientTransportCustomizer, this.clientConnectorCustomizerCustomizer, socketAddressResolver);
 	}
 
 	/**
@@ -137,17 +160,19 @@ public final class JettyHttpClientBuilder {
 		settings = (settings != null) ? settings : HttpClientSettings.defaults();
 		HttpClientTransport transport = createTransport(settings);
 		this.httpClientTransportCustomizer.accept(transport);
-		HttpClient httpClient = createHttpClient(settings.readTimeout(), transport);
+		HttpClient httpClient = createHttpClient(settings, transport);
 		PropertyMapper map = PropertyMapper.get();
 		map.from(settings::connectTimeout).as(Duration::toMillis).to(httpClient::setConnectTimeout);
+		map.from(settings::cookieHandling).as(this::asCookieStore).to(httpClient::setHttpCookieStore);
 		map.from(settings::redirects).always().as(this::followRedirects).to(httpClient::setFollowRedirects);
+		map.from(this.socketAddressResolver).to(httpClient::setSocketAddressResolver);
 		this.customizer.accept(httpClient);
 		return httpClient;
 	}
 
-	private HttpClient createHttpClient(@Nullable Duration readTimeout, HttpClientTransport transport) {
-		return (readTimeout != null) ? new HttpClientWithReadTimeout(transport, readTimeout)
-				: new HttpClient(transport);
+	private HttpClient createHttpClient(HttpClientSettings settings, HttpClientTransport transport) {
+		return (settings.readTimeout() != null || settings.inetAddressFilter() != null)
+				? new CustomizedHttpClient(transport, settings) : new HttpClient(transport);
 	}
 
 	private HttpClientTransport createTransport(HttpClientSettings settings) {
@@ -182,6 +207,13 @@ public final class JettyHttpClientBuilder {
 		return factory;
 	}
 
+	private @Nullable HttpCookieStore asCookieStore(HttpCookieHandling cookieHandling) {
+		return switch (cookieHandling) {
+			case ENABLE_WHEN_POSSIBLE, ENABLE -> new HttpCookieStore.Default();
+			case DISABLE -> new HttpCookieStore.Empty();
+		};
+	}
+
 	private boolean followRedirects(@Nullable HttpRedirects redirects) {
 		if (redirects == null) {
 			return true;
@@ -193,21 +225,32 @@ public final class JettyHttpClientBuilder {
 	}
 
 	/**
-	 * {@link HttpClient} subclass that sets the read timeout.
+	 * {@link HttpClient} subclass to support customization.
 	 */
-	static class HttpClientWithReadTimeout extends HttpClient {
+	static class CustomizedHttpClient extends HttpClient {
 
-		private final Duration readTimeout;
+		private final HttpClientSettings settings;
 
-		HttpClientWithReadTimeout(HttpClientTransport transport, Duration readTimeout) {
+		CustomizedHttpClient(HttpClientTransport transport, HttpClientSettings settings) {
 			super(transport);
-			this.readTimeout = readTimeout;
+			this.settings = settings;
+		}
+
+		@Override
+		public void setSocketAddressResolver(SocketAddressResolver resolver) {
+			if (this.settings.inetAddressFilter() != null) {
+				Assert.notNull(resolver, "'resolver' must not be null when addresses are filtered");
+				resolver = new JettyFilteredSocketAddressResolver(resolver, this.settings.inetAddressFilter());
+			}
+			super.setSocketAddressResolver(resolver);
 		}
 
 		@Override
 		public org.eclipse.jetty.client.Request newRequest(java.net.URI uri) {
 			Request request = super.newRequest(uri);
-			request.timeout(this.readTimeout.toMillis(), TimeUnit.MILLISECONDS);
+			if (this.settings.readTimeout() != null) {
+				request.timeout(this.settings.readTimeout().toMillis(), TimeUnit.MILLISECONDS);
+			}
 			return request;
 		}
 

@@ -24,9 +24,12 @@ import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.context.properties.source.InvalidConfigurationPropertyValueException;
+import org.springframework.boot.micrometer.tracing.autoconfigure.TracingProperties.Exemplars.Include;
 import org.springframework.boot.micrometer.tracing.autoconfigure.prometheus.PrometheusExemplarsAutoConfiguration.LazyTracingSpanContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -63,7 +66,8 @@ class LazyTracingSpanContextTests {
 
 	};
 
-	private final LazyTracingSpanContext spanContext = new LazyTracingSpanContext(this.objectProvider);
+	private LazyTracingSpanContext spanContext = new LazyTracingSpanContext(this.objectProvider,
+			Include.SAMPLED_TRACES);
 
 	@Test
 	void whenCurrentSpanIsNullThenSpanIdIsNull() {
@@ -144,6 +148,23 @@ class LazyTracingSpanContextTests {
 		given(this.tracer.currentSpan()).willReturn(span);
 		TraceContext traceContext = mock(TraceContext.class);
 		given(traceContext.sampled()).willReturn(null);
+		given(span.context()).willReturn(traceContext);
+		assertThat(this.spanContext.isCurrentSpanSampled()).isFalse();
+	}
+
+	@Test
+	void whenIncludeIsAllThenConstructorThrows() {
+		assertThatExceptionOfType(InvalidConfigurationPropertyValueException.class)
+			.isThrownBy(() -> new LazyTracingSpanContext(this.objectProvider, Include.ALL));
+	}
+
+	@Test
+	void whenIncludeIsNoneAndSpanIsSampledThenSampledIsFalse() {
+		this.spanContext = new LazyTracingSpanContext(this.objectProvider, Include.NONE);
+		Span span = mock(Span.class);
+		given(this.tracer.currentSpan()).willReturn(span);
+		TraceContext traceContext = mock(TraceContext.class);
+		given(traceContext.sampled()).willReturn(true);
 		given(span.context()).willReturn(traceContext);
 		assertThat(this.spanContext.isCurrentSpanSampled()).isFalse();
 	}

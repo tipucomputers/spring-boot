@@ -24,6 +24,7 @@ import org.jspecify.annotations.Nullable;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.core.io.Resource;
+import org.springframework.util.StringUtils;
 
 /**
  * Configuration properties for Cassandra.
@@ -227,12 +228,17 @@ public class CassandraProperties {
 		private @Nullable Boolean enabled;
 
 		/**
+		 * Whether to perform hostname verification.
+		 */
+		private boolean verifyHostname = true;
+
+		/**
 		 * SSL bundle name.
 		 */
 		private @Nullable String bundle;
 
 		public boolean isEnabled() {
-			return (this.enabled != null) ? this.enabled : this.bundle != null;
+			return (this.enabled != null) ? this.enabled : StringUtils.hasText(this.bundle);
 		}
 
 		public void setEnabled(boolean enabled) {
@@ -245,6 +251,14 @@ public class CassandraProperties {
 
 		public void setBundle(@Nullable String bundle) {
 			this.bundle = bundle;
+		}
+
+		public boolean isVerifyHostname() {
+			return this.verifyHostname;
+		}
+
+		public void setVerifyHostname(boolean verifyHostname) {
+			this.verifyHostname = verifyHostname;
 		}
 
 	}

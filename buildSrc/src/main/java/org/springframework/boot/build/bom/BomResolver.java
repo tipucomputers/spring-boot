@@ -28,8 +28,6 @@ import java.util.function.Function;
 
 import javax.xml.namespace.QName;
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
@@ -50,6 +48,7 @@ import org.springframework.boot.build.bom.ResolvedBom.Id;
 import org.springframework.boot.build.bom.ResolvedBom.JavadocLink;
 import org.springframework.boot.build.bom.ResolvedBom.Links;
 import org.springframework.boot.build.bom.ResolvedBom.ResolvedLibrary;
+import org.springframework.boot.build.xml.XmlDocument;
 
 /**
  * Creates a {@link ResolvedBom resolved bom}.
@@ -67,12 +66,7 @@ class BomResolver {
 	BomResolver(ConfigurationContainer configurations, DependencyHandler dependencies) {
 		this.configurations = configurations;
 		this.dependencies = dependencies;
-		try {
-			this.documentBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-		}
-		catch (ParserConfigurationException ex) {
-			throw new RuntimeException(ex);
-		}
+		this.documentBuilder = XmlDocument.builder();
 	}
 
 	ResolvedBom resolve(BomExtension bomExtension) {
@@ -199,7 +193,7 @@ class BomResolver {
 
 	private static final class Node {
 
-		protected final XPath xpath;
+		private final XPath xpath;
 
 		private final org.w3c.dom.Node delegate;
 

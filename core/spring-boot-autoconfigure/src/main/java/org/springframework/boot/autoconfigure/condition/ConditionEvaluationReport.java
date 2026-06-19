@@ -167,8 +167,8 @@ public final class ConditionEvaluationReport {
 	 * @return the {@link ConditionEvaluationReport} or {@code null}
 	 */
 	public static @Nullable ConditionEvaluationReport find(BeanFactory beanFactory) {
-		if (beanFactory instanceof ConfigurableListableBeanFactory) {
-			return ConditionEvaluationReport.get((ConfigurableListableBeanFactory) beanFactory);
+		if (beanFactory instanceof ConfigurableListableBeanFactory configurableListableBeanFactory) {
+			return ConditionEvaluationReport.get(configurableListableBeanFactory);
 		}
 		return null;
 	}

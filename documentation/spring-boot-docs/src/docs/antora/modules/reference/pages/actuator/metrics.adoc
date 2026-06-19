@@ -527,6 +527,12 @@ Custom headers, for example for authentication, can also be provided using confi
 
 If an `OtlpMetricsSender` bean is available, it will be configured on the `OtlpMeterRegistry` that Spring Boot auto-configures.
 
+https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exemplars[OTLP Exemplars] are also supported.
+To enable this feature, an javadoc:io.micrometer.registry.otlp.ExemplarContextProvider[] bean should be present.
+If you use xref:actuator/tracing.adoc[Micrometer Tracing], this will be auto-configured for you.
+By default, only sampled traces are included as exemplars.
+You can control this behavior using the configprop:management.tracing.exemplars.include[] property.
+
 
 
 [[actuator.metrics.export.prometheus]]
@@ -552,6 +558,9 @@ https://prometheus.io/docs/prometheus/latest/feature_flags/#exemplars-storage[Pr
 To enable this feature, a javadoc:io.prometheus.metrics.tracer.common.SpanContext[] bean should be present.
 If you're using the deprecated Prometheus simpleclient support and want to enable that feature, a javadoc:io.prometheus.client.exemplars.tracer.common.SpanContextSupplier[] bean should be present.
 If you use {url-micrometer-tracing-docs}[Micrometer Tracing], this will be auto-configured for you, but you can always create your own if you want.
+By default, only sampled traces are included as exemplars.
+You can control this behavior using the configprop:management.tracing.exemplars.include[] property.
+The value `all` is not supported with Prometheus.
 Please check the https://prometheus.io/docs/prometheus/latest/feature_flags/#exemplars-storage[Prometheus Docs], since this feature needs to be explicitly enabled on Prometheus' side, and it is only supported using the https://github.com/OpenObservability/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md#exemplars[OpenMetrics] format.
 
 For ephemeral or batch jobs that may not exist long enough to be scraped, you can use https://github.com/prometheus/pushgateway[Prometheus Pushgateway] support to expose the metrics to Prometheus.
@@ -806,7 +815,7 @@ To customize the tags, provide a javadoc:org.springframework.context.annotation.
 === SSL Bundle Metrics
 
 Spring Boot Actuator publishes expiry metrics about SSL bundles.
-The metric `ssl.chain.expiry` gauges the expiry date of each certificate chain in seconds.
+The metric `ssl.chain.expiry` gauges the expiry date of each certificate chain in key stores and trust stores in seconds.
 This number will be negative if the chain has already expired.
 This metric is tagged with the following information:
 
@@ -821,6 +830,9 @@ This metric is tagged with the following information:
 
 | `chain`
 | The name of the certificate chain.
+
+| `source`
+| Whether the certificate chain comes from the key store (`keystore`) or trust store (`truststore`)
 |===
 
 
@@ -1100,7 +1112,7 @@ Metrics for Jetty's javadoc:org.eclipse.jetty.server.Connector[] instances are b
 === Redis Metrics
 
 Auto-configuration registers a javadoc:io.lettuce.core.tracing.MicrometerTracing[] for the auto-configured javadoc:org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory[].
-For more detail, see the {url-lettuce-docs}/advanced-usage/#observability[Observability section] of the Lettuce documentation.
+For more detail, see the {url-lettuce-docs}/advanced-usage/observability[Observability section] of the Lettuce documentation.
 
 
 

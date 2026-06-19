@@ -27,8 +27,15 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.NoneNestedConditions;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.context.properties.source.InvalidConfigurationPropertyValueException;
 import org.springframework.boot.micrometer.tracing.autoconfigure.MicrometerTracingAutoConfiguration;
+import org.springframework.boot.micrometer.tracing.autoconfigure.TracingProperties;
+import org.springframework.boot.micrometer.tracing.autoconfigure.TracingProperties.Exemplars.Include;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.util.function.SingletonSupplier;
 
 /**
@@ -36,6 +43,7 @@ import org.springframework.util.function.SingletonSupplier;
  * Micrometer Tracing.
  *
  * @author Jonatan Ivanov
+ * @author Moritz Halbritter
  * @since 4.0.0
  */
 @AutoConfiguration(
@@ -43,12 +51,27 @@ import org.springframework.util.function.SingletonSupplier;
 		after = MicrometerTracingAutoConfiguration.class)
 @ConditionalOnBean(Tracer.class)
 @ConditionalOnClass({ Tracer.class, SpanContext.class })
+@EnableConfigurationProperties(TracingProperties.class)
 public final class PrometheusExemplarsAutoConfiguration {
 
 	@Bean
-	@ConditionalOnMissingBean
-	SpanContext spanContext(ObjectProvider<Tracer> tracerProvider) {
-		return new LazyTracingSpanContext(tracerProvider);
+	@ConditionalOnMissingBean(SpanContext.class)
+	@Conditional(SpanContextNotDisabledCondition.class)
+	LazyTracingSpanContext spanContext(ObjectProvider<Tracer> tracerProvider, TracingProperties properties) {
+		return new LazyTracingSpanContext(tracerProvider, properties.getExemplars().getInclude());
+	}
+
+	static class SpanContextNotDisabledCondition extends NoneNestedConditions {
+
+		SpanContextNotDisabledCondition() {
+			super(ConfigurationPhase.REGISTER_BEAN);
+		}
+
+		@ConditionalOnProperty(value = "management.tracing.exemplars.include", havingValue = "none")
+		static class NoneIncluded {
+
+		}
+
 	}
 
 	/**
@@ -60,8 +83,15 @@ public final class PrometheusExemplarsAutoConfiguration {
 
 		private final SingletonSupplier<Tracer> tracer;
 
-		LazyTracingSpanContext(ObjectProvider<Tracer> tracerProvider) {
+		private final Include include;
+
+		LazyTracingSpanContext(ObjectProvider<Tracer> tracerProvider, Include include) {
+			if (include == Include.ALL) {
+				throw new InvalidConfigurationPropertyValueException("management.tracing.exemplars.include", "all",
+						"Prometheus doesn't support including 'all' traces as exemplars.");
+			}
 			this.tracer = SingletonSupplier.of(tracerProvider::getObject);
+			this.include = include;
 		}
 
 		@Override
@@ -82,12 +112,21 @@ public final class PrometheusExemplarsAutoConfiguration {
 			if (currentSpan == null) {
 				return false;
 			}
-			Boolean sampled = currentSpan.context().sampled();
-			return sampled != null && sampled;
+			return switch (this.include) {
+				case ALL ->
+					throw new UnsupportedOperationException("Including 'all' traces as exemplars is not supported");
+				case NONE -> false;
+				case SAMPLED_TRACES -> isSampled(currentSpan);
+			};
 		}
 
 		@Override
 		public void markCurrentSpanAsExemplar() {
+		}
+
+		private boolean isSampled(Span span) {
+			Boolean sampled = span.context().sampled();
+			return sampled != null && sampled;
 		}
 
 		private @Nullable Span currentSpan() {
